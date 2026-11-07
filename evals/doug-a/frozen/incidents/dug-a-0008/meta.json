@@ -1,0 +1,13 @@
+{
+  "allowed_paths": [
+    "people.py"
+  ],
+  "category": "wrong-sort-key",
+  "check": "python -m pytest -q tests/test_people.py",
+  "id": "dug-a-0008",
+  "root_cause": "the sort key uses the name field instead of age",
+  "root_cause_keywords": [
+    "sort",
+    "age"
+  ]
+}

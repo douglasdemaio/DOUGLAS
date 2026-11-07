@@ -1,0 +1,31 @@
+model_id: doug-a
+version: 1
+
+sft:
+  sources:
+    - id: seed-incidents
+      path: data/doug-a/seed/sft.jsonl
+      weight: 1.0
+    - id: synthetic-incidents
+      path: data/doug-a/synthetic/sft.jsonl
+      weight: 1.0
+  filters:
+    - name: min-assistant-chars
+      min_chars: 80
+    - name: exact-duplicate-prompts
+      action: drop
+  mixture:
+    seed-incidents: 1.0
+    synthetic-incidents: 1.0
+
+dpo:
+  sources:
+    - id: seed-preferences
+      path: data/doug-a/seed/dpo.jsonl
+      weight: 1.0
+  mixture:
+    seed-preferences: 1.0
+
+notes: >
+  Patch-generation data only. Every example must be a failing-check -> patch ->
+  green transition. Do not add production logs or customer data here.

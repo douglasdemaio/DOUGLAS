@@ -1,0 +1,67 @@
+name: promotion gate
+
+on:
+  workflow_dispatch:
+    inputs:
+      model:
+        description: "Model to promote"
+        type: choice
+        options: [doug-a, doug-l]
+        required: true
+      challenger:
+        description: "results/<run> or path to a scores.json"
+        type: string
+        required: true
+
+permissions:
+  contents: write
+
+concurrency:
+  group: douglas-gate
+  cancel-in-progress: false
+
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install pinned environment
+        run: pip install -r requirements.lock
+
+      - name: Hermetic check
+        run: make check
+
+      - name: Run promotion gate
+        env:
+          DOUGLAS_SIGNING_KEY: ${{ secrets.DOUGLAS_SIGNING_KEY }}
+        run: |
+          set -euo pipefail
+          if [ -z "${DOUGLAS_SIGNING_KEY}" ]; then
+            echo "DOUGLAS_SIGNING_KEY is not configured" >&2
+            exit 2
+          fi
+          python -m scripts.gate \
+            --model "${{ inputs.model }}" \
+            --challenger "${{ inputs.challenger }}"
+
+      - name: Commit signed receipt
+        run: |
+          set -euo pipefail
+          git config user.name "douglas-gate[bot]"
+          git config user.email "douglas-gate@users.noreply.github.com"
+          git add registry baseline.json experiments/ledger.jsonl
+          if git diff --cached --quiet; then
+            echo "nothing to commit"
+            exit 0
+          fi
+          git commit -m "chore(registry): promote ${{ inputs.model }}"
+          git push

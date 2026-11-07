@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "updated": "2026-11-07",
+  "models": {
+    "doug-a": {
+      "champion": null,
+      "run": null,
+      "scores": null
+    },
+    "doug-l": {
+      "champion": null,
+      "run": null,
+      "scores": null
+    }
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "allowed_paths": [
+    "names.py"
+  ],
+  "category": "missing-none-check",
+  "check": "python -m pytest -q tests/test_names.py",
+  "id": "dug-a-0004",
+  "root_cause": "normalize calls strip on None without a guard",
+  "root_cause_keywords": [
+    "none",
+    "strip"
+  ]
+}

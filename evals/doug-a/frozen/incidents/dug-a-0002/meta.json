@@ -1,0 +1,13 @@
+{
+  "allowed_paths": [
+    "slices.py"
+  ],
+  "category": "off-by-one",
+  "check": "python -m pytest -q tests/test_slices.py",
+  "id": "dug-a-0002",
+  "root_cause": "the slice start is off-by-one and drops the first requested element",
+  "root_cause_keywords": [
+    "off-by-one",
+    "slice"
+  ]
+}

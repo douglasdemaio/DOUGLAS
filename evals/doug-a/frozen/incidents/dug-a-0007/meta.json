@@ -1,0 +1,13 @@
+{
+  "allowed_paths": [
+    "parse.py"
+  ],
+  "category": "wrong-exception",
+  "check": "python -m pytest -q tests/test_parse.py",
+  "id": "dug-a-0007",
+  "root_cause": "the except clause catches TypeError but not the ValueError raised by int()",
+  "root_cause_keywords": [
+    "valueerror",
+    "typeerror"
+  ]
+}

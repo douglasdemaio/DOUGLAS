@@ -1,0 +1,27 @@
+model_id: doug-l
+version: 1
+
+sft:
+  sources:
+    - id: seed-shipments
+      path: data/doug-l/seed/sft.jsonl
+      weight: 1.0
+  filters:
+    - name: min-assistant-chars
+      min_chars: 80
+    - name: exact-duplicate-prompts
+      action: drop
+  mixture:
+    seed-shipments: 1.0
+
+dpo:
+  sources:
+    - id: seed-preferences
+      path: data/doug-l/seed/dpo.jsonl
+      weight: 1.0
+  mixture:
+    seed-preferences: 1.0
+
+notes: >
+  Extraction + solver-call data only. The model never performs optimisation
+  arithmetic itself; it calls the plan_route tool and explains the result.

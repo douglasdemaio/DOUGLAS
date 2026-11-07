@@ -1,0 +1,13 @@
+{
+  "allowed_paths": [
+    "slugs.py"
+  ],
+  "category": "wrong-regex",
+  "check": "python -m pytest -q tests/test_slugs.py",
+  "id": "dug-a-0005",
+  "root_cause": "the regex only allows lowercase letters, so it rejects digits and hyphens",
+  "root_cause_keywords": [
+    "regex",
+    "hyphen"
+  ]
+}

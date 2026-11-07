@@ -1,0 +1,37 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "DOUGLAS eval scores",
+  "type": "object",
+  "required": ["schema_version", "run", "model", "ckpt", "seeds", "metrics", "hashes", "timestamp"],
+  "properties": {
+    "schema_version": {"const": 1},
+    "run": {"type": "string", "minLength": 1},
+    "model": {"enum": ["doug-a", "doug-l"]},
+    "ckpt": {"type": "string"},
+    "engine": {"enum": ["replay", "endpoint"]},
+    "seeds": {"type": "array", "items": {"type": "integer"}, "minItems": 3},
+    "items": {"type": "integer", "minimum": 1},
+    "timestamp": {"type": "string"},
+    "metrics": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "required": ["mean", "std", "values"],
+        "properties": {
+          "mean": {"type": "number"},
+          "std": {"type": "number"},
+          "values": {"type": "array", "items": {"type": "number"}}
+        }
+      }
+    },
+    "hashes": {
+      "type": "object",
+      "required": ["frozen_eval_sha256", "recipe_sha256", "adapter_sha256"],
+      "properties": {
+        "frozen_eval_sha256": {"type": "string"},
+        "recipe_sha256": {"type": "string"},
+        "adapter_sha256": {"type": "string"}
+      }
+    }
+  }
+}

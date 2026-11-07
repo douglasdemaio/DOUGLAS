@@ -1,0 +1,13 @@
+{
+  "allowed_paths": [
+    "calc.py"
+  ],
+  "category": "zero-division",
+  "check": "python -m pytest -q tests/test_calc.py",
+  "id": "dug-a-0001",
+  "root_cause": "safe_div never checks for a zero denominator, so division by zero raises ZeroDivisionError",
+  "root_cause_keywords": [
+    "zero",
+    "denominator"
+  ]
+}

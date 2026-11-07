@@ -1,0 +1,9 @@
+# Pinned developer + CI environment. CPU only, hermetic.
+# Install with: pip install -r requirements.lock
+cryptography==50.0.2
+huggingface_hub==2.4.0
+jsonschema==4.26.0
+pytest==9.2.0
+PyYAML==6.0.3
+requests==2.34.2
+ruff==0.17.4

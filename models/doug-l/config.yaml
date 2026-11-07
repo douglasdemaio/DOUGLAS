@@ -1,0 +1,59 @@
+model_id: doug-l
+display_name: Distribution Orchestrator for Unified Goods, Loads And Shipments
+
+base:
+  repo: Qwen/Qwen2.5-7B-Instruct
+  revision: a09a35458c702b33eeacc393d103063234e8bc28
+
+lora:
+  r: 16
+  alpha: 32
+  dropout: 0.05
+  target_modules:
+    - q_proj
+    - k_proj
+    - v_proj
+    - o_proj
+    - gate_proj
+    - up_proj
+    - down_proj
+
+training:
+  sft:
+    epochs: 2
+    lr: 1.0e-4
+    batch_size: 1
+    grad_accum: 16
+    max_seq_len: 4096
+  dpo:
+    epochs: 1
+    lr: 5.0e-5
+    beta: 0.1
+    batch_size: 1
+    grad_accum: 8
+    max_seq_len: 4096
+
+budget:
+  gpu_hours_per_run: 6
+  gpu_hours_per_day: 12
+  gpu_hours_per_week: 40
+  flavor: a10g-large
+
+metrics:
+  primary: task_success
+  noise_margin: 0.02
+  bootstrap_min_primary: 0.50
+  guarded:
+    solver_call_validity:
+      direction: higher
+      tolerance: 0.0
+      floor: 1.0
+    cost_gap_vs_solver:
+      direction: lower
+      tolerance: 0.02
+    hallucinated_field_rate:
+      direction: lower
+      tolerance: 0.02
+    explanation_grounded:
+      direction: higher
+      tolerance: 0.03

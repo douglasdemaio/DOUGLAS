@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "DOUGLAS promotion receipt payload",
+  "type": "object",
+  "required": [
+    "model_id",
+    "base_revision",
+    "adapter_sha256",
+    "recipe_sha256",
+    "frozen_eval_sha256",
+    "scores",
+    "seeds",
+    "timestamp"
+  ],
+  "properties": {
+    "model_id": {"enum": ["doug-a", "doug-l"]},
+    "base_revision": {"type": "string", "minLength": 7},
+    "adapter_sha256": {"type": "string", "minLength": 8},
+    "recipe_sha256": {"type": "string", "minLength": 64},
+    "frozen_eval_sha256": {"type": "string", "minLength": 64},
+    "scores": {"type": "object"},
+    "seeds": {"type": "array", "items": {"type": "integer"}, "minItems": 3},
+    "timestamp": {"type": "string"}
+  },
+  "additionalProperties": false
+}

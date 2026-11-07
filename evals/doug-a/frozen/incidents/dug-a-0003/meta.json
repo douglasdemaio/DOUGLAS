@@ -1,0 +1,13 @@
+{
+  "allowed_paths": [
+    "stats.py"
+  ],
+  "category": "wrong-comparison",
+  "check": "python -m pytest -q tests/test_stats.py",
+  "id": "dug-a-0003",
+  "root_cause": "the comparison is inverted, so largest keeps the smallest value",
+  "root_cause_keywords": [
+    "comparison",
+    "inverted"
+  ]
+}

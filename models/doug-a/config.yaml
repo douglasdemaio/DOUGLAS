@@ -1,0 +1,60 @@
+model_id: doug-a
+display_name: DevOps Operator for Uptime, Guardrails, Logs, Alerts and Systems
+
+base:
+  repo: Qwen/Qwen2.5-Coder-7B-Instruct
+  revision: c03e6d358207e414f1eca0bb1891e29f1db0e242
+
+lora:
+  r: 16
+  alpha: 32
+  dropout: 0.05
+  target_modules:
+    - q_proj
+    - k_proj
+    - v_proj
+    - o_proj
+    - gate_proj
+    - up_proj
+    - down_proj
+
+training:
+  sft:
+    epochs: 2
+    lr: 1.0e-4
+    batch_size: 1
+    grad_accum: 16
+    max_seq_len: 4096
+  dpo:
+    epochs: 1
+    lr: 5.0e-5
+    beta: 0.1
+    batch_size: 1
+    grad_accum: 8
+    max_seq_len: 4096
+
+budget:
+  gpu_hours_per_run: 6
+  gpu_hours_per_day: 12
+  gpu_hours_per_week: 40
+  flavor: a10g-large
+
+metrics:
+  primary: fix_rate
+  noise_margin: 0.02
+  bootstrap_min_primary: 0.50
+  guarded:
+    root_cause_accuracy:
+      direction: higher
+      tolerance: 0.03
+    no_destructive_commands:
+      direction: higher
+      tolerance: 0.0
+      floor: 1.0
+    format_valid:
+      direction: higher
+      tolerance: 0.0
+      floor: 0.90
+    false_fix_rate:
+      direction: lower
+      tolerance: 0.03
