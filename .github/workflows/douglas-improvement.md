@@ -73,11 +73,11 @@ steps:
         echo "## make check"; make check 2>&1 | tail -40; echo "check_exit=${PIPESTATUS[0]}"
         for m in doug-a doug-l; do
           echo "## champion scores: $m"; cat "registry/$m.champion.scores.json" 2>/dev/null || echo "none yet"
-          echo "## pending jobs: $m"; python scripts/pending_jobs.py --model "$m" --refresh
+          echo "## pending jobs: $m"; python -m scripts.pending_jobs --model "$m" --refresh
         done
-        echo "## budget used today"; python scripts/budget.py --today
+        echo "## budget used today"; python -m scripts.budget --today
       } | tee /tmp/gh-aw/agent/baseline.txt
-      python scripts/baseline_json.py > /tmp/gh-aw/agent/baseline.json
+      python -m scripts.baseline_json > /tmp/gh-aw/agent/baseline.json
 safe-outputs:
   create-pull-request:
     max: 1
