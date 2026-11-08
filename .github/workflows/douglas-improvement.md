@@ -9,7 +9,10 @@ on:
   schedule: daily on weekdays
   push:
     branches: [main]
-  skip-if-match: 'is:issue is:open "gh-aw-workflow-id: douglas-improvement" in:body'
+  # Block on a deliberate marker issue only. gh-aw's own failure reports carry the
+  # same marker and the `agentic-workflows` label; matching those would deadlock
+  # every later run behind the issue it just opened.
+  skip-if-match: 'is:issue is:open "gh-aw-workflow-id: douglas-improvement" in:body -label:agentic-workflows'
   steps:
     - name: Skip scheduled runs when too many workflow PRs are open
       id: pr_pressure
@@ -29,7 +32,7 @@ on:
       run: |
         set -uo pipefail
         n=$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --limit 100 \
-              --search '"gh-aw-workflow-id: douglas-improvement" in:body' \
+              --search '"gh-aw-workflow-id: douglas-improvement" in:body -label:agentic-workflows' \
               --json number --jq 'length' 2>/dev/null || echo 0)
         case "$n" in ''|*[!0-9]*) n=0 ;; esac
         if [ "$n" -gt 0 ]; then
