@@ -1,17 +1,19 @@
 from __future__ import annotations
 
 from scripts import budget
+from scripts.common import utc_now
 
 
 def _record(**kwargs):
+    now = utc_now().replace(microsecond=0).isoformat().replace("+00:00", "Z")
     base = {
         "kind": "job",
         "model": "doug-a",
         "job_id": "j1",
         "status": "done",
         "gpu_hours_est": 2.0,
-        "ts": "2026-11-07T09:00:00Z",
-        "submitted_at": "2026-11-07T09:00:00Z",
+        "ts": now,
+        "submitted_at": now,
     }
     base.update(kwargs)
     return base
