@@ -59,6 +59,45 @@ network:
     - huggingface.co
     - "*.huggingface.co"
 steps:
+  - name: Wait for the pinned release assets
+    env:
+      CDN_WAIT_MINUTES: "15"
+    run: |
+      # github.com/<org>/<repo>/releases/download/... has returned 504s for
+      # extended windows, which fails the AWF install before the agent starts.
+      # Poll the two pinned assets the generated install steps need so a
+      # transient CDN outage delays the run instead of killing it.
+      set -uo pipefail
+      lock=.github/workflows/douglas-improvement.lock.yml
+      awf=$(grep -oE 'install_awf_binary\.sh" v[0-9]+\.[0-9]+\.[0-9]+' "$lock" | awk '{print $2}' | head -1)
+      detect=$(grep -oE 'install_threat_detect_binary\.sh" v[0-9]+\.[0-9]+\.[0-9]+' "$lock" | awk '{print $2}' | head -1)
+      urls=(
+        "https://github.com/github/gh-aw-firewall/releases/download/${awf}/checksums.txt"
+        "https://github.com/github/gh-aw-firewall/releases/download/${awf}/awf-bundle.js"
+        "https://github.com/github/gh-aw-threat-detection/releases/download/${detect}/threat-detect-linux-amd64"
+      )
+      deadline=$(( $(date +%s) + CDN_WAIT_MINUTES * 60 ))
+      attempt=0
+      while :; do
+        attempt=$((attempt + 1))
+        missing=()
+        for u in "${urls[@]}"; do
+          code=$(curl -sSL -o /dev/null -w '%{http_code}' --max-time 20 "$u" || echo 000)
+          [ "$code" = "200" ] || missing+=("$code $u")
+        done
+        if [ "${#missing[@]}" -eq 0 ]; then
+          echo "release assets reachable after ${attempt} attempt(s)"
+          exit 0
+        fi
+        if [ "$(date +%s)" -ge "$deadline" ]; then
+          printf 'release CDN still failing after %s minutes:\n' "$CDN_WAIT_MINUTES"
+          printf '  %s\n' "${missing[@]}"
+          echo "::error title=GitHub release CDN unavailable::Pinned install assets never returned 200. Re-run once github.com release downloads recover; no repository change is needed."
+          exit 1
+        fi
+        echo "attempt ${attempt}: ${missing[*]}"
+        sleep 20
+      done
   - name: Set up Python
     uses: actions/setup-python@v7
     with:
