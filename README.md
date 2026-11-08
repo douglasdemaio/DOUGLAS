@@ -36,6 +36,8 @@ make gate MODEL=doug-a CHALLENGER=results/<run>   # CI does this; local use for 
 
 `make train` refuses to submit when a job would exceed the caps in
 `models/<id>/config.yaml`. It never runs model code outside the Jobs container.
+The scheduled loop never gives `HF_TOKEN` to the agent: it submits through the
+privileged `submit-training` safe-output job, which runs the same script.
 
 ## Repository map
 

@@ -82,8 +82,90 @@ safe-outputs:
   create-pull-request:
     max: 1
     expires: 7
+    preserve-branch-name: true   # the submit job needs the exact branch name
     protected-files: fallback-to-issue   # evals/*/frozen/**, scripts/gate.py, thresholds
   push-to-pull-request-branch:
+  jobs:
+    submit-training:
+      description: >-
+        Submit exactly one Hugging Face GPU training job for the change already
+        committed on this run's pull-request branch. Call this after
+        create-pull-request, passing that same branch name. The job holds
+        HF_TOKEN (the agent never does), enforces the budget caps, appends the
+        job to experiments/ledger.jsonl, and pushes that commit back to the
+        branch. It fails if any cap in models/<id>/config.yaml would be exceeded.
+      runs-on: ubuntu-latest
+      needs: safe_outputs
+      permissions:
+        contents: write
+        pull-requests: read
+      output: "Training job submitted; the pull-request branch records the job id in experiments/ledger.jsonl."
+      env:
+        HF_TOKEN: ${{ secrets.HF_TOKEN }}
+      inputs:
+        model:
+          description: "Model to train"
+          required: true
+          type: choice
+          options: ["doug-a", "doug-l"]
+        stage:
+          description: "Training stage"
+          required: false
+          type: choice
+          options: ["sft", "dpo"]
+          default: "sft"
+        branch:
+          description: "Exact pull-request branch name passed to create-pull-request in this run"
+          required: true
+          type: string
+        hypothesis:
+          description: "One-sentence hypothesis for this run"
+          required: true
+          type: string
+        concern:
+          description: "The one concern changed, for example recipe:data-filter"
+          required: true
+          type: string
+      steps:
+        - uses: actions/checkout@v7
+          with:
+            fetch-depth: 1
+        - uses: actions/setup-python@v7
+          with:
+            python-version: "3.12"
+            cache: pip
+        - name: Install pinned environment
+          run: pip install -r requirements.lock
+        - name: Submit the job and record it on the PR branch
+          run: |
+            set -euo pipefail
+            test -f "${GH_AW_AGENT_OUTPUT:-}" || { echo "no agent output"; exit 1; }
+            mapfile -t items < <(jq -c '.items[] | select(.type == "submit_training")' "$GH_AW_AGENT_OUTPUT")
+            [ "${#items[@]}" -eq 1 ] || { echo "expected exactly one submit_training item, got ${#items[@]}"; exit 1; }
+            item="${items[0]}"
+            model=$(jq -r '.model // empty' <<<"$item")
+            stage=$(jq -r '.stage // "sft"' <<<"$item")
+            branch=$(jq -r '.branch // empty' <<<"$item")
+            hypothesis=$(jq -r '.hypothesis // empty' <<<"$item")
+            concern=$(jq -r '.concern // empty' <<<"$item")
+            for v in model branch hypothesis concern; do
+              [ -n "${!v}" ] || { echo "$v is required"; exit 1; }
+            done
+            case "$branch" in douglas/*) ;; *) echo "branch must start with douglas/"; exit 1 ;; esac
+            git fetch --depth 1 origin "$branch"
+            git checkout --detach FETCH_HEAD
+            python -m scripts.submit_job \
+              --model "$model" --stage "$stage" \
+              --hypothesis "$hypothesis" --concern "$concern"
+            if git diff --quiet -- experiments/ledger.jsonl; then
+              echo "no ledger change to push"
+              exit 0
+            fi
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add experiments/ledger.jsonl
+            git commit -m "chore(ledger): record $model $stage job submission"
+            git push origin "HEAD:refs/heads/$branch"
   threat-detection:
     continue-on-error: false
     retries: 2
@@ -139,7 +221,8 @@ champion's scores, any pending or finished GPU jobs, and today's budget use.
   result to the ledger, and open a PR if it clears the noise margin. That counts as this run's concern.
 - If a job is still **running**, don't submit another one for that model.
 - Otherwise, pick **one** model and **one** recipe or hyperparameter change, run `make check`,
-  submit `make train`, and record the job id and your one-sentence hypothesis in the ledger.
+  open the pull request on a `douglas/...` branch, and submit the training job with the
+  `submit-training` tool (see below).
 
 ## Choosing the concern
 
@@ -152,6 +235,26 @@ Prefer, in order:
 5. A single hyperparameter group (learning rate/schedule, LoRA rank/alpha, epochs, DPO beta).
 
 Alternate between the models when nothing in 1–3 applies, so neither one stalls.
+
+## Submitting a training job
+
+You **do not have `HF_TOKEN`** and must never try to read, print or set it. Running
+`make train` in your container will fail. Submission happens through the
+`submit-training` safe-output tool, which runs after you finish with the token,
+the budget check and the ledger commit.
+
+1. Commit the single-concern change on a new branch named
+   `douglas/<model>-<short-concern>-<YYYYMMDD>`.
+2. Call `create-pull-request` once with that exact `branch` value and the PR body
+   described under **Output**. Branch names are preserved, so collisions fail.
+3. Call `submit-training` **once** with `model`, `stage` (`sft`, or `dpo` when a
+   SFT adapter already exists), the same `branch`, a one-sentence `hypothesis`,
+   and `concern`.
+
+Do not call `submit-training` when a job for that model is pending or running, and
+do not call it unless you opened the PR in the same run. If the budget caps in
+`models/<id>/config.yaml` refuse the job, the tool fails and reports why; do not
+retry with a different flavor or a smaller eval.
 
 ## Output
 
