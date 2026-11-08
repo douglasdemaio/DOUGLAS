@@ -4,7 +4,7 @@
         --hypothesis "adding deduped CI-failure examples raises fix_rate"
     python -m scripts.submit_job --model doug-a --dry-run
 
-The job clones this repository at the current commit, installs
+The job downloads a tarball of this repository at the current commit, installs
 requirements.train.lock, runs scripts.train_remote, and pushes the adapter to
 the Hub. This command never blocks and never runs the model locally.
 """
@@ -54,13 +54,32 @@ def namespace() -> str:
         return "your-namespace"
 
 
+def repo_slug(repo_url: str) -> str:
+    """Return ``owner/name`` for a GitHub clone URL."""
+    slug = repo_url.rstrip("/")
+    if slug.endswith(".git"):
+        slug = slug[:-4]
+    parts = slug.split("/")
+    if len(parts) < 2:
+        raise ValueError(f"cannot parse a repository slug from {repo_url!r}")
+    return "/".join(parts[-2:])
+
+
 def build_command(args, model_cfg: dict, adapter_repo: str) -> list[str]:
     repo_url = os.environ.get("DOUGLAS_REPO_URL", DEFAULT_REPO_URL)
     sha = current_sha()
-    checkout = f"git fetch --depth 1 origin {sha} && git checkout --detach {sha}" if sha else "true"
-    remote = f"cd /workspace && {checkout} && pip install -q -r requirements.train.lock"
+    # The CUDA images ship python3, pip and tar but no git or curl, so fetch a
+    # tarball of the pinned commit instead of cloning.
+    ref = sha or "refs/heads/main"
+    tarball = f"https://codeload.github.com/{repo_slug(repo_url)}/tar.gz/{ref}"
+    fetch = (
+        "python3 - <<'PY'\n"
+        "import urllib.request\n"
+        f"urllib.request.urlretrieve({tarball!r}, '/tmp/douglas.tar.gz')\n"
+        "PY"
+    )
     train_args = (
-        f"python -m scripts.train_remote --model {args.model} --stage {args.stage} "
+        f"python3 -m scripts.train_remote --model {args.model} --stage {args.stage} "
         f"--output-repo {adapter_repo}"
     )
     if args.stage == "dpo":
@@ -68,7 +87,13 @@ def build_command(args, model_cfg: dict, adapter_repo: str) -> list[str]:
     if args.max_steps:
         train_args += f" --max-steps {args.max_steps}"
     script = (
-        f"set -euo pipefail\ngit clone --depth 1 {repo_url} /workspace\n{remote}\n{train_args}\n"
+        "set -euo pipefail\n"
+        "mkdir -p /workspace\n"
+        f"{fetch}\n"
+        "tar -xzf /tmp/douglas.tar.gz -C /workspace --strip-components=1\n"
+        "cd /workspace\n"
+        "python3 -m pip install -q -r requirements.train.lock\n"
+        f"{train_args}\n"
     )
     return ["bash", "-lc", script]
 
