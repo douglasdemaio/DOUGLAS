@@ -32,20 +32,31 @@ def refresh(record: dict) -> dict:
     token = os.environ.get("HF_TOKEN") or os.environ.get("HUGGING_FACE_HUB_TOKEN")
     if not token or not record.get("job_id"):
         return record
+    total_secs = None
     try:
         from huggingface_hub import inspect_job
 
         info = inspect_job(job_id=record["job_id"], token=token)
         status = STAGE_MAP.get(str(info.status.stage).upper(), "unknown")
+        total_secs = getattr(getattr(info, "durations", None), "total_secs", None)
     except Exception as exc:  # network or auth failure must not hide the job
         record = {**record, "refresh_error": str(exc)}
         return record
+
+    updates: dict = {}
     if status != record.get("status"):
-        record = {
-            **record,
-            "status": status,
-            "finished_at": utc_now_iso() if status in {"done", "failed"} else None,
-        }
+        updates["status"] = status
+        updates["finished_at"] = utc_now_iso() if status in {"done", "failed"} else None
+    if (
+        status in {"done", "failed"}
+        and record.get("gpu_hours") is None
+        and isinstance(total_secs, (int, float))
+    ):
+        # Charge what the job actually ran, not the pre-run estimate, so a
+        # crash at startup does not consume the whole daily budget.
+        updates["gpu_hours"] = round(total_secs / 3600.0, 4)
+    if updates:
+        record = {**record, **updates}
         append_ledger(record)
     return record
 
