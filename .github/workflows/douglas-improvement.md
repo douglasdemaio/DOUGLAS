@@ -82,6 +82,7 @@ safe-outputs:
   create-pull-request:
     max: 1
     expires: 7
+    if-no-changes: "error"       # a submission run must carry its ledger plan entry
     preserve-branch-name: true   # the submit job needs the exact branch name
     protected-files: fallback-to-issue   # evals/*/frozen/**, scripts/gate.py, thresholds
   push-to-pull-request-branch:
@@ -96,6 +97,7 @@ safe-outputs:
         branch. It fails if any cap in models/<id>/config.yaml would be exceeded.
       runs-on: ubuntu-latest
       needs: safe_outputs
+      if: needs.safe_outputs.result == 'success'
       permissions:
         contents: write
         pull-requests: read
@@ -243,11 +245,16 @@ You **do not have `HF_TOKEN`** and must never try to read, print or set it. Runn
 `submit-training` safe-output tool, which runs after you finish with the token,
 the budget check and the ledger commit.
 
-1. Commit the single-concern change on a new branch named
-   `douglas/<model>-<short-concern>-<YYYYMMDD>`.
-2. Call `create-pull-request` once with that exact `branch` value and the PR body
-   described under **Output**. Branch names are preserved, so collisions fail.
-3. Call `submit-training` **once** with `model`, `stage` (`sft`, or `dpo` when a
+1. Append a `kind: plan` entry to `experiments/ledger.jsonl` with `model`,
+   `concern`, `hypothesis`, `commit` (if known) and `ts`. This is the run's
+   bookkeeping record and guarantees the branch is non-empty even on the
+   first, baseline run where no recipe change is justified.
+2. Commit that entry plus the single-concern change (if any) on a new branch
+   named `douglas/<model>-<short-concern>-<YYYYMMDD>`.
+3. Call `create-pull-request` once with that exact `branch` value and the PR body
+   described under **Output**. Branch names are preserved, and an empty diff is
+   an error, so collisions or a missing plan entry fail loudly.
+4. Call `submit-training` **once** with `model`, `stage` (`sft`, or `dpo` when a
    SFT adapter already exists), the same `branch`, a one-sentence `hypothesis`,
    and `concern`.
 
