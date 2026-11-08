@@ -1,11 +1,11 @@
 # GPU-only environment, installed inside the Hugging Face Job container.
 # Never installed by `make check`; never needed on a CPU runner.
-torch==2.8.0
+torch==2.6.0
 transformers==4.57.1
 trl==0.26.2
 peft==0.18.0
 accelerate==1.11.0
 bitsandbytes==0.48.1
 datasets==4.3.0
-huggingface_hub==2.4.0
+huggingface_hub==0.36.2
 PyYAML==6.0.3
