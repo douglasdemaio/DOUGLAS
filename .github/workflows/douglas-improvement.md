@@ -116,6 +116,7 @@ steps:
         for m in doug-a doug-l; do
           echo "## champion scores: $m"; cat "registry/$m.champion.scores.json" 2>/dev/null || echo "none yet"
           echo "## pending jobs: $m"; python -m scripts.pending_jobs --model "$m" --refresh
+          echo "## eval queue: $m"; python -m scripts.eval_queue --model "$m" --fetch
         done
         echo "## budget used today"; python -m scripts.budget --today
       } | tee /tmp/gh-aw/agent/baseline.txt
@@ -153,10 +154,10 @@ safe-outputs:
           type: choice
           options: ["doug-a", "doug-l"]
         stage:
-          description: "Training stage"
+          description: "Stage: sft, dpo, or predict (score the trained adapter on the frozen set)"
           required: false
           type: choice
-          options: ["sft", "dpo"]
+          options: ["sft", "dpo", "predict"]
           default: "sft"
         branch:
           description: "Exact pull-request branch name passed to create-pull-request in this run"
@@ -261,8 +262,13 @@ champion's scores, any pending or finished GPU jobs, and today's budget use.
   (`make check REPEAT=3`) first. If it passes on a later attempt without any
   change, it's **flaky**: open an issue naming the flaky test instead of
   "fixing" it.
-- If a **GPU job has finished**, evaluate it (`make eval ... SEEDS=3`), append the
-  result to the ledger, and open a PR if it clears the noise margin. That counts as this run's concern.
+- If the eval queue says **AWAITING PREDICT**, a trained adapter has no scores yet. Submit a
+  `predict` job for it (see below). That is this run's concern.
+- If the eval queue lists a **scored run**, its predictions and scores are already in
+  `results/<run>/`. Re-grade hermetically with
+  `make eval MODEL=<id> CKPT=<run> SEEDS=3 ENGINE=replay PREDICTIONS=results/<run>/predictions.jsonl`
+  (no endpoint needed), append the result to the ledger, and open a PR if it clears the noise
+  margin. That counts as this run's concern.
 - If a job is still **running**, don't submit another one for that model.
 - Otherwise, pick **one** model and **one** recipe or hyperparameter change, run `make check`,
   open the pull request on a `douglas/...` branch, and submit the training job with the
@@ -296,8 +302,8 @@ the budget check and the ledger commit.
 3. Call `create-pull-request` once with that exact `branch` value and the PR body
    described under **Output**. Branch names are preserved, and an empty diff is
    an error, so collisions or a missing plan entry fail loudly.
-4. Call `submit-training` **once** with `model`, `stage` (`sft`, or `dpo` when a
-   SFT adapter already exists), the same `branch`, a one-sentence `hypothesis`,
+4. Call `submit-training` **once** with `model`, `stage` (`sft`; `dpo` when an
+   SFT adapter already exists; `predict` when the eval queue says AWAITING PREDICT), the same `branch`, a one-sentence `hypothesis`,
    and `concern`.
 
 Do not call `submit-training` when a job for that model is pending or running, and

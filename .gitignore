@@ -13,3 +13,4 @@ tmp/
 
 # Local/raw inputs must be scrubbed before they are committed.
 data/*/raw/
+_hub/

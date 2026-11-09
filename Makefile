@@ -7,6 +7,7 @@ REPEAT ?= 1
 JOB ?=
 CHALLENGER ?=
 ENGINE ?=
+PREDICTIONS ?=
 BASE ?= origin/main
 
 .PHONY: help setup check lint harness eval train job-status gate contamination scope protect baseline scrub clean
@@ -42,7 +43,7 @@ harness:
 
 eval:
 	@test -n "$(MODEL)" || (echo "MODEL is required" && exit 2)
-	bash scripts/eval.sh --model "$(MODEL)" --ckpt "$(CKPT)" --seeds "$(SEEDS)" $(if $(ENGINE),--engine "$(ENGINE)",)
+	bash scripts/eval.sh --model "$(MODEL)" --ckpt "$(CKPT)" --seeds "$(SEEDS)" $(if $(ENGINE),--engine "$(ENGINE)",) $(if $(PREDICTIONS),--predictions "$(PREDICTIONS)",)
 
 train:
 	@test -n "$(MODEL)" || (echo "MODEL is required" && exit 2)
