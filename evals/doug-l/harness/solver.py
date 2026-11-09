@@ -68,6 +68,14 @@ def plan(order: dict, fleet: list[dict]) -> dict:
 
 
 def constraints_ok(order: dict, fleet: list[dict], proposed: dict) -> tuple[bool, list[str]]:
+    # Model output is untrusted: a plan or order missing a field fails the check.
+    try:
+        return _constraints_ok(order, fleet, proposed)
+    except (KeyError, TypeError, ValueError) as exc:
+        return False, [f"malformed plan or order: {exc!r}"]
+
+
+def _constraints_ok(order: dict, fleet: list[dict], proposed: dict) -> tuple[bool, list[str]]:
     if not proposed or not proposed.get("feasible", True):
         return False, ["no feasible plan"]
     vehicle = next((v for v in fleet if v["vehicle_id"] == proposed.get("vehicle_id")), None)

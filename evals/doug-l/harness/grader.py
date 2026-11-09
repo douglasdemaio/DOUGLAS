@@ -172,7 +172,11 @@ def grade_item(item: dict, prediction: dict) -> dict:
 
     extraction_ok = extraction_correct(item, extraction)
     call_ok = solver_call_valid(item, calls)
-    optimal = solver.plan(extraction, item["fleet"]) if call_ok else {"feasible": False}
+    try:
+        optimal = solver.plan(extraction, item["fleet"]) if call_ok else {"feasible": False}
+    except (KeyError, TypeError, ValueError):
+        optimal = {"feasible": False}
+        call_ok = False
     constraints, problems = solver.constraints_ok(extraction, item["fleet"], plan)
     plan_ok = plan_matches(plan, optimal) and constraints
     gap = solver.cost_gap(plan, optimal) if call_ok else 1.0

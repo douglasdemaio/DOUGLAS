@@ -34,3 +34,24 @@ def test_doug_l_gold_and_bad():
 
     bad = l_grader.grade_item(item, l_grader.bad_prediction(item))
     assert bad["task_success"] == 0.0
+
+
+def test_doug_l_grader_scores_malformed_model_output_instead_of_crashing():
+    import importlib.util
+    from pathlib import Path
+
+    root = Path(__file__).resolve().parents[1]
+    spec = importlib.util.spec_from_file_location(
+        "grader_doug_l_malformed", root / "evals" / "doug-l" / "harness" / "grader.py"
+    )
+    grader = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(grader)
+    item = grader.list_items()[0]
+
+    for prediction in (
+        {},
+        {"extraction": {"order_id": "x"}, "solver_calls": [], "plan": {"vehicle_id": "v"}},
+        {"extraction": dict(item["order"]), "plan": {"vehicle_id": item["fleet"][0]["vehicle_id"]}},
+    ):
+        result = grader.grade_item(item, prediction)
+        assert result["task_success"] == 0.0
