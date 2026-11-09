@@ -25,6 +25,7 @@ from scripts.common import (
     load_config,
     load_recipe,
     recipe_sha256,
+    utc_now,
     utc_now_iso,
 )
 
@@ -78,14 +79,21 @@ def build_command(args, model_cfg: dict, adapter_repo: str) -> list[str]:
         f"urllib.request.urlretrieve({tarball!r}, '/tmp/douglas.tar.gz')\n"
         "PY"
     )
-    train_args = (
-        f"python3 -m scripts.train_remote --model {args.model} --stage {args.stage} "
-        f"--output-repo {adapter_repo}"
-    )
-    if args.stage == "dpo":
-        train_args += f" --init-adapter {args.init_adapter or adapter_repo}"
-    if args.max_steps:
-        train_args += f" --max-steps {args.max_steps}"
+    if args.stage == "predict":
+        train_args = (
+            f"python3 -m scripts.predict_remote --model {args.model} --adapter {adapter_repo}"
+        )
+        if getattr(args, "run", None):
+            train_args += f" --run {args.run}"
+    else:
+        train_args = (
+            f"python3 -m scripts.train_remote --model {args.model} --stage {args.stage} "
+            f"--output-repo {adapter_repo}"
+        )
+        if args.stage == "dpo":
+            train_args += f" --init-adapter {args.init_adapter or adapter_repo}"
+        if args.max_steps:
+            train_args += f" --max-steps {args.max_steps}"
     script = (
         "set -euo pipefail\n"
         "mkdir -p /workspace\n"
@@ -101,20 +109,25 @@ def build_command(args, model_cfg: dict, adapter_repo: str) -> list[str]:
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--model", required=True)
-    parser.add_argument("--stage", choices=["sft", "dpo"], default="sft")
+    parser.add_argument("--stage", choices=["sft", "dpo", "predict"], default="sft")
     parser.add_argument("--hypothesis", default="unspecified")
     parser.add_argument("--concern", default="unspecified")
     parser.add_argument("--init-adapter")
     parser.add_argument("--max-steps", type=int)
+    parser.add_argument("--run", help="eval run name (predict stage)")
     parser.add_argument("--flavor")
     parser.add_argument("--gpu-hours", type=float)
     parser.add_argument("--dry-run", action="store_true")
     args = parser.parse_args(argv)
 
+    if args.stage == "predict" and not args.run:
+        args.run = f"{args.model}-predict-{utc_now().strftime('%Y%m%dT%H%M%SZ')}"
+
     config = load_config(args.model)
     load_recipe(args.model)  # fail early if the recipe is malformed
     caps = config["budget"]
-    requested = args.gpu_hours or float(caps["gpu_hours_per_run"])
+    default_hours = 1.0 if args.stage == "predict" else float(caps["gpu_hours_per_run"])
+    requested = args.gpu_hours or default_hours
     flavor = args.flavor or caps["flavor"]
 
     ok, reason = budget_check(args.model, requested)
@@ -129,7 +142,7 @@ def main(argv: list[str] | None = None) -> int:
         "image": DEFAULT_IMAGE,
         "command": command,
         "flavor": flavor,
-        "timeout": f"{int(caps['gpu_hours_per_run'])}h",
+        "timeout": "1h" if args.stage == "predict" else f"{int(caps['gpu_hours_per_run'])}h",
         "labels": {"douglas-model": args.model, "douglas-stage": args.stage},
         "secrets": ["HF_TOKEN"],
     }
@@ -173,6 +186,9 @@ def main(argv: list[str] | None = None) -> int:
         "commit": current_sha(),
         "adapter_repo": adapter_repo,
     }
+    if args.stage == "predict":
+        record["run"] = args.run
+        record["scores_url"] = f"https://huggingface.co/{adapter_repo}/tree/main/evals/{args.run}"
     append_ledger(record)
     print(job.id)
     return 0

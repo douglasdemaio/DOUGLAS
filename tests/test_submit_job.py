@@ -31,6 +31,19 @@ def test_build_command_passes_dpo_adapter(monkeypatch):
     assert "--max-steps 10" in script
 
 
+def test_build_command_predicts_with_the_adapter(monkeypatch):
+    monkeypatch.setattr(submit_job, "current_sha", lambda: "abc123")
+    script = submit_job.build_command(
+        _args(stage="predict", run="doug-a-predict-x"), {}, "me/douglas-doug-a"
+    )[2]
+
+    assert (
+        "python3 -m scripts.predict_remote --model doug-a --adapter me/douglas-doug-a"
+        " --run doug-a-predict-x"
+    ) in script
+    assert "train_remote" not in script
+
+
 def test_repo_slug_strips_git_suffix():
     assert submit_job.repo_slug("https://github.com/douglasdemaio/DOUGLAS.git") == (
         "douglasdemaio/DOUGLAS"
