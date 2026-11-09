@@ -13,9 +13,29 @@ import argparse
 import json
 import os
 import sys
+import time
 from pathlib import Path
 
 from scripts.common import ROOT, load_config, load_recipe, read_jsonl, sha256_file
+
+
+def push_with_retries(trainer, attempts: int = 4) -> None:
+    """Push the adapter, backing off on transient Hub/Xet failures.
+
+    The Hub's Xet upload path answers 429 under load; losing the adapter
+    after a finished training run means paying for the GPU work twice.
+    """
+    delay = 15
+    for attempt in range(1, attempts + 1):
+        try:
+            trainer.push_to_hub()
+            return
+        except Exception as exc:  # noqa: BLE001 - any upload failure is retryable
+            if attempt == attempts:
+                raise
+            print(f"push_to_hub failed ({exc}); retrying in {delay}s", file=sys.stderr)
+            time.sleep(delay)
+            delay *= 2
 
 
 # --------------------------------------------------------------------------- #
@@ -136,7 +156,7 @@ def train_sft(args, config: dict, rows: list[dict]) -> None:
         processing_class=tokenizer,
     )
     trainer.train()
-    trainer.push_to_hub()
+    push_with_retries(trainer)
     print(json.dumps({"stage": "sft", "rows": len(rows), "metrics": trainer.state.log_history[-1]}))
 
 
@@ -196,7 +216,7 @@ def train_dpo(args, config: dict, rows: list[dict]) -> None:
         processing_class=tokenizer,
     )
     trainer.train()
-    trainer.push_to_hub()
+    push_with_retries(trainer)
     print(json.dumps({"stage": "dpo", "rows": len(rows), "metrics": trainer.state.log_history[-1]}))
 
 
