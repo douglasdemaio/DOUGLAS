@@ -44,6 +44,23 @@ def test_build_command_predicts_with_the_adapter(monkeypatch):
     assert "train_remote" not in script
 
 
+def test_build_command_installs_the_pinned_test_runner_for_doug_a_predict(monkeypatch):
+    monkeypatch.setattr(submit_job, "current_sha", lambda: "abc123")
+    script = submit_job.build_command(
+        _args(stage="predict", run="doug-a-predict-x"), {}, "me/douglas-doug-a"
+    )[2]
+
+    assert f"python3 -m pip install -q '{submit_job.eval_test_runner()}'" in script
+    assert submit_job.eval_test_runner().startswith("pytest==")
+
+
+def test_build_command_leaves_the_training_stages_alone(monkeypatch):
+    monkeypatch.setattr(submit_job, "current_sha", lambda: "abc123")
+    script = submit_job.build_command(_args(stage="sft"), {}, "me/douglas-doug-a")[2]
+
+    assert "pytest==" not in script
+
+
 def test_repo_slug_strips_git_suffix():
     assert submit_job.repo_slug("https://github.com/douglasdemaio/DOUGLAS.git") == (
         "douglasdemaio/DOUGLAS"
