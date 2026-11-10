@@ -17,6 +17,14 @@ def test_gold_patch_passes_and_bad_patch_fails():
     assert bad["fixed"] == 0.0
 
 
+def test_gold_patch_applies_without_git_or_patch_on_path(monkeypatch, tmp_path):
+    # The Hugging Face PyTorch image has neither git nor patch.
+    monkeypatch.setenv("PATH", str(tmp_path))
+    item = a_grader.list_items()[0]
+    gold = a_grader.grade_item(item, a_grader.gold_prediction(item))
+    assert gold["fixed"] == 1.0
+
+
 def test_destructive_commands_are_flagged():
     item = a_grader.list_items()[0]
     prediction = a_grader.gold_prediction(item)

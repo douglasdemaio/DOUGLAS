@@ -153,31 +153,137 @@ def run_check(repo: Path, command: str, timeout: int = 120) -> tuple[int, str]:
     return result.returncode, (result.stdout + result.stderr)[-4000:]
 
 
+_HUNK_RE = re.compile(r"^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@")
+
+
+def _patch_path(raw: str) -> str | None:
+    path = raw.split("\t")[0].strip()
+    if path == "/dev/null":
+        return None
+    if path[:2] in {"a/", "b/"}:
+        return path[2:]
+    return path
+
+
+def _hunks(patch: str) -> list[tuple[re.Match, list[str]]]:
+    """Yield (header, body) for every hunk, with the body bounded by the next hunk."""
+    lines = patch.splitlines(keepends=True)
+    found = []
+    for index, line in enumerate(lines):
+        match = _HUNK_RE.match(line)
+        if not match:
+            continue
+        body = []
+        for follow in lines[index + 1 :]:
+            if _HUNK_RE.match(follow) or follow.startswith(("diff --git ", "--- ")):
+                break
+            body.append(follow)
+        found.append((match, body))
+    return found
+
+
+def _apply_hunks(old_text: str, hunks: list[tuple[re.Match, list[str]]]) -> str | None:
+    old = old_text.splitlines(keepends=True)
+    out: list[str] = []
+    pos = 0
+    for match, body in hunks:
+        old_count = int(match.group(2) or 1)
+        start = int(match.group(1)) - 1 if old_count else int(match.group(1))
+        if start < pos or start > len(old):
+            return None
+        out.extend(old[pos:start])
+        pos = start
+        for line in body:
+            if line.startswith("\\"):  # "\ No newline at end of file"
+                if out and out[-1].endswith("\n"):
+                    out[-1] = out[-1][:-1]
+                continue
+            tag, text = line[0], line[1:]
+            if tag == " ":
+                if pos >= len(old) or old[pos] != text:
+                    return None
+                out.append(text)
+                pos += 1
+            elif tag == "-":
+                if pos >= len(old) or old[pos] != text:
+                    return None
+                pos += 1
+            elif tag == "+":
+                out.append(text)
+            else:
+                return None
+    out.extend(old[pos:])
+    return "".join(out)
+
+
+def _apply_unified_diff(repo: Path, patch: str) -> tuple[bool, str]:
+    """Apply a text unified diff without git. Returns (applied, error)."""
+    lines = patch.splitlines(keepends=True)
+    starts = [
+        i
+        for i, line in enumerate(lines)
+        if line.startswith("--- ") and i + 1 < len(lines) and lines[i + 1].startswith("+++ ")
+    ]
+    if not starts:
+        return False, "no file headers in patch"
+    pending: dict[Path, str | None] = {}
+    for number, index in enumerate(starts):
+        end = starts[number + 1] if number + 1 < len(starts) else len(lines)
+        old_rel = _patch_path(lines[index][4:])
+        new_rel = _patch_path(lines[index + 1][4:])
+        rel = new_rel or old_rel
+        if rel is None:
+            return False, "patch deletes a file without naming it"
+        target = repo / rel
+        if old_rel is None:
+            old_text = ""
+        elif target.is_file():
+            old_text = target.read_text(encoding="utf-8")
+        else:
+            return False, f"patch targets a missing file: {rel}"
+        new_text = _apply_hunks(old_text, _hunks("".join(lines[index + 2 : end])))
+        if new_text is None:
+            return False, f"hunk does not apply: {rel}"
+        pending[target] = None if new_rel is None else new_text
+    for target, content in pending.items():
+        if content is None:
+            target.unlink(missing_ok=True)
+        else:
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_text(content, encoding="utf-8")
+    return True, ""
+
+
 def apply_patch(repo: Path, patch: str) -> tuple[bool, str]:
     if not patch.strip():
         return False, "empty patch"
+    # The GPU image has no git, so apply in Python first; external tools are a
+    # fallback for patches this applier does not understand.
+    applied, python_err = _apply_unified_diff(repo, patch)
+    if applied:
+        return True, ""
     patch_file = repo / ".douglas.patch"
     patch_file.write_text(patch, encoding="utf-8")
+    errors = [python_err]
     try:
-        result = subprocess.run(
+        for command in (
             ["git", "apply", "-p1", "--whitespace=nowarn", ".douglas.patch"],
-            cwd=repo,
-            capture_output=True,
-            text=True,
-            timeout=60,
-        )
-        if result.returncode == 0:
-            return True, ""
-        fallback = subprocess.run(
             ["patch", "-p1", "--batch", "--forward", "-i", ".douglas.patch"],
-            cwd=repo,
-            capture_output=True,
-            text=True,
-            timeout=60,
-        )
-        if fallback.returncode == 0:
-            return True, ""
-        return False, (result.stderr + fallback.stdout)[-2000:]
+        ):
+            try:
+                result = subprocess.run(
+                    command,
+                    cwd=repo,
+                    capture_output=True,
+                    text=True,
+                    timeout=60,
+                )
+            except OSError:
+                continue  # tool absent in this image
+            if result.returncode == 0:
+                return True, ""
+            errors.append(result.stderr or result.stdout)
+        return False, "\n".join(errors)[-2000:]
     finally:
         patch_file.unlink(missing_ok=True)
 
