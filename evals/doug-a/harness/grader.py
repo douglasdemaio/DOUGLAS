@@ -216,6 +216,14 @@ def _apply_hunks(old_text: str, hunks: list[tuple[re.Match, list[str]]]) -> str 
     return "".join(out)
 
 
+ESCAPE_ERROR = "patch path escapes the sandbox"
+
+
+def _escapes(repo: Path, rel: str) -> bool:
+    root = repo.resolve()
+    return not (root / rel).resolve().is_relative_to(root)
+
+
 def _apply_unified_diff(repo: Path, patch: str) -> tuple[bool, str]:
     """Apply a text unified diff without git. Returns (applied, error)."""
     lines = patch.splitlines(keepends=True)
@@ -234,6 +242,8 @@ def _apply_unified_diff(repo: Path, patch: str) -> tuple[bool, str]:
         rel = new_rel or old_rel
         if rel is None:
             return False, "patch deletes a file without naming it"
+        if any(_escapes(repo, name) for name in (old_rel, new_rel) if name is not None):
+            return False, f"{ESCAPE_ERROR}: {rel}"
         target = repo / rel
         if old_rel is None:
             old_text = ""
@@ -262,6 +272,8 @@ def apply_patch(repo: Path, patch: str) -> tuple[bool, str]:
     applied, python_err = _apply_unified_diff(repo, patch)
     if applied:
         return True, ""
+    if python_err.startswith(ESCAPE_ERROR):
+        return False, python_err
     patch_file = repo / ".douglas.patch"
     patch_file.write_text(patch, encoding="utf-8")
     errors = [python_err]
@@ -286,6 +298,19 @@ def apply_patch(repo: Path, patch: str) -> tuple[bool, str]:
         return False, "\n".join(errors)[-2000:]
     finally:
         patch_file.unlink(missing_ok=True)
+
+
+def _snapshot(repo: Path) -> dict[str, bytes]:
+    return {
+        path.relative_to(repo).as_posix(): path.read_bytes()
+        for path in repo.rglob("*")
+        if path.is_file()
+    }
+
+
+def changed_paths(before: dict[str, bytes], after: dict[str, bytes]) -> set[str]:
+    """Files the patch really created, deleted or modified, whatever its headers say."""
+    return {rel for rel in before.keys() | after.keys() if before.get(rel) != after.get(rel)}
 
 
 def touched_paths(patch: str) -> list[str]:
@@ -342,15 +367,18 @@ def grade_item(item_dir: Path | str, prediction: dict, timeout: int = 120) -> di
 
         ok_format = format_valid(prediction)
         destructive = destructive_commands(prediction)
+        before = _snapshot(repo)
         applied, _apply_err = apply_patch(repo, prediction.get("patch", ""))
 
         fixed = False
         if applied:
-            after_rc, _after_out = run_check(repo, meta["check"], timeout)
-            allowed = set(meta.get("allowed_paths", []))
-            fixed = after_rc == 0 and set(touched_paths(prediction["patch"])) <= allowed
-        elif not ok_format:
-            fixed = False
+            # Headers are model-written; trust the files that changed on disk as well.
+            touched = changed_paths(before, _snapshot(repo)) | set(
+                touched_paths(prediction["patch"])
+            )
+            if touched <= set(meta.get("allowed_paths", [])):
+                after_rc, _after_out = run_check(repo, meta["check"], timeout)
+                fixed = after_rc == 0
 
         cause = root_cause_correct(meta, prediction)
 
@@ -377,12 +405,44 @@ def replay(predictions: dict[str, dict]):
     return engine
 
 
+def confinement_failures(item_dir: Path) -> list[str]:
+    """Patches that edit files outside allowed_paths, or outside the sandbox, must not count."""
+    failures = []
+    meta = load_item(item_dir)
+    repo = repo_files(item_dir)
+
+    protected = next(rel for rel in repo if rel not in meta["allowed_paths"])
+    rewrite = "".join(
+        difflib.unified_diff(
+            repo[protected].splitlines(keepends=True),
+            ["def test_always_passes():\n", "    assert True\n"],
+            fromfile=protected,
+            tofile=protected,
+        )
+    )
+    result = grade_item(item_dir, {"id": meta["id"], "root_cause": "n/a", "patch": rewrite})
+    if result["fixed"] != 0.0:
+        failures.append(f"{meta['id']}: patch outside allowed_paths was accepted")
+
+    with tempfile.TemporaryDirectory(prefix="doug-a-escape-") as outside:
+        marker = Path(outside) / "marker.txt"
+        relative = Path("..") / marker.relative_to(Path(tempfile.gettempdir()))
+        for target in (str(marker), f"b/{relative.as_posix()}"):
+            escape = f"--- /dev/null\n+++ {target}\n@@ -0,0 +1 @@\n+escaped\n"
+            grade_item(item_dir, {"id": meta["id"], "root_cause": "n/a", "patch": escape})
+            if marker.exists():
+                failures.append(f"{meta['id']}: patch wrote outside the sandbox via {target}")
+                marker.unlink()
+    return failures
+
+
 def main() -> int:
     failures = []
     items = list_items()
     if not items:
         print("no frozen incidents found", file=sys.stderr)
         return 2
+    failures.extend(confinement_failures(items[0]))
     for item in items:
         gold = grade_item(item, gold_prediction(item))
         if gold["fixed"] != 1.0 or gold["root_cause_correct"] != 1.0:
