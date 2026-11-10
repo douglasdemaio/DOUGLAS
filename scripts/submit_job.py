@@ -66,6 +66,15 @@ def repo_slug(repo_url: str) -> str:
     return "/".join(parts[-2:])
 
 
+def eval_test_runner() -> str:
+    """Return the pytest pin from requirements.lock, the developer/CI environment."""
+    for line in (ROOT / "requirements.lock").read_text(encoding="utf-8").splitlines():
+        line = line.strip()
+        if line.startswith("pytest=="):
+            return line
+    raise RuntimeError("requirements.lock does not pin pytest")
+
+
 def build_command(args, model_cfg: dict, adapter_repo: str) -> list[str]:
     repo_url = os.environ.get("DOUGLAS_REPO_URL", DEFAULT_REPO_URL)
     sha = current_sha()
@@ -94,13 +103,19 @@ def build_command(args, model_cfg: dict, adapter_repo: str) -> list[str]:
             train_args += f" --init-adapter {args.init_adapter or adapter_repo}"
         if args.max_steps:
             train_args += f" --max-steps {args.max_steps}"
+    install = "python3 -m pip install -q -r requirements.train.lock\n"
+    if args.stage == "predict" and args.model == "doug-a":
+        # DOUG-A grades a patch by running the frozen pytest checks inside this
+        # image. requirements.train.lock is a protected path, so install the
+        # runner at the exact developer/CI pin instead of editing that lock.
+        install += f"python3 -m pip install -q '{eval_test_runner()}'\n"
     script = (
         "set -euo pipefail\n"
         "mkdir -p /workspace\n"
         f"{fetch}\n"
         "tar -xzf /tmp/douglas.tar.gz -C /workspace --strip-components=1\n"
         "cd /workspace\n"
-        "python3 -m pip install -q -r requirements.train.lock\n"
+        f"{install}"
         f"{train_args}\n"
     )
     return ["bash", "-lc", script]
