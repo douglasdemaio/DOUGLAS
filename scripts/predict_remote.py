@@ -12,6 +12,7 @@ under `evals/<run>/`. The frozen set is only ever read.
 from __future__ import annotations
 
 import argparse
+import importlib.util
 import json
 import re
 import subprocess
@@ -154,6 +155,11 @@ def main(argv: list[str] | None = None) -> int:
     model, tokenizer = load_model(config, args.adapter)
     parsed = predict_all(model, tokenizer, args.model, items, predictions_path)
     print(f"parsed {parsed}/{len(items)} predictions")
+
+    if args.model == "doug-a" and importlib.util.find_spec("pytest") is None:
+        # Without pytest every frozen check fails and every fix silently scores 0.
+        print("pytest is missing; refusing to grade doug-a", file=sys.stderr)
+        return 2
 
     cmd = [
         sys.executable,
