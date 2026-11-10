@@ -6,6 +6,9 @@ sft:
     - id: seed-shipments
       path: data/doug-l/seed/sft.jsonl
       weight: 1.0
+    - id: synthetic-shipments
+      path: data/doug-l/synthetic/sft.jsonl
+      weight: 1.0
   filters:
     - name: min-assistant-chars
       min_chars: 80
@@ -13,6 +16,7 @@ sft:
       action: drop
   mixture:
     seed-shipments: 1.0
+    synthetic-shipments: 1.0
 
 dpo:
   sources:
