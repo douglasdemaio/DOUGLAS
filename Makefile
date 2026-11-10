@@ -1,5 +1,6 @@
 SHELL := /usr/bin/env bash
 PYTHON ?= $(shell if [ -x .venv/bin/python ]; then echo .venv/bin/python; else echo python3; fi)
+export PYTHON  # scripts/eval.sh reads it, so `make eval` uses the same interpreter
 MODEL ?=
 CKPT ?= champion
 SEEDS ?= 3

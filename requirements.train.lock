@@ -9,3 +9,6 @@ bitsandbytes==0.48.1
 datasets==4.3.0
 huggingface_hub==0.36.2
 PyYAML==6.0.3
+# The predict stage grades DOUG-A patches by running the frozen pytest checks
+# inside this image, so the test runner has to be present here too.
+pytest==9.2.0

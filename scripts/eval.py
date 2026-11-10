@@ -208,6 +208,12 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--timeout", type=int, default=180)
     args = parser.parse_args(argv)
 
+    if args.model == "doug-a" and importlib.util.find_spec("pytest") is None:
+        # A missing test runner makes every sandbox check fail, which looks
+        # exactly like a real fix_rate of 0.0. Refuse instead of scoring it.
+        print("pytest is required to run the doug-a frozen checks", file=sys.stderr)
+        return 2
+
     problems = verify_frozen_manifest(args.model)
     if problems:
         for problem in problems:
