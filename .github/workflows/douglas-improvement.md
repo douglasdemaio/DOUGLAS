@@ -112,6 +112,7 @@ steps:
       set -uo pipefail
       mkdir -p /tmp/gh-aw/agent
       {
+        echo "## run id: ${GITHUB_RUN_ID}"
         echo "## make check"; make check 2>&1 | tail -40; echo "check_exit=${PIPESTATUS[0]}"
         for m in doug-a doug-l; do
           echo "## champion scores: $m"; cat "registry/$m.champion.scores.json" 2>/dev/null || echo "none yet"
@@ -298,7 +299,10 @@ the budget check and the ledger commit.
    bookkeeping record and guarantees the branch is non-empty even on the
    first, baseline run where no recipe change is justified.
 2. Commit that entry plus the single-concern change (if any) on a new branch
-   named `douglas/<model>-<short-concern>-<YYYYMMDD>`.
+   named `douglas/<model>-<short-concern>-<run id>`, using the `run id` printed
+   at the top of the context. Never reuse a branch name from an earlier run or
+   from a merged PR: the safe-output tool refuses to push to an existing branch
+   and files a fallback issue instead of opening the PR.
 3. Call `create-pull-request` once with that exact `branch` value and the PR body
    described under **Output**. Branch names are preserved, and an empty diff is
    an error, so collisions or a missing plan entry fail loudly.
