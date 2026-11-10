@@ -1,0 +1,67 @@
+{
+  "ckpt": "douglas-doug-a",
+  "config_base_revision": "c03e6d358207e414f1eca0bb1891e29f1db0e242",
+  "engine": "replay",
+  "hashes": {
+    "adapter_sha256": "17dfdcb7ee6203cbcb81c75374e2f3c4de8b800e",
+    "frozen_eval_sha256": "0a862ed4205b0dcc52276294d47656848cc202f2749603b26a98244acf999d8a",
+    "recipe_sha256": "f4688a6eb6d6cbcf90fb9ac0e1080ef8e04332f653370f4517fef300e9ed1fb7"
+  },
+  "items": 8,
+  "metrics": {
+    "false_fix_rate": {
+      "mean": 0.5,
+      "std": 0.0,
+      "values": [
+        0.5,
+        0.5,
+        0.5
+      ]
+    },
+    "fix_rate": {
+      "mean": 0.5,
+      "std": 0.0,
+      "values": [
+        0.5,
+        0.5,
+        0.5
+      ]
+    },
+    "format_valid": {
+      "mean": 1.0,
+      "std": 0.0,
+      "values": [
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
+    "no_destructive_commands": {
+      "mean": 1.0,
+      "std": 0.0,
+      "values": [
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
+    "root_cause_accuracy": {
+      "mean": 0.25,
+      "std": 0.0,
+      "values": [
+        0.25,
+        0.25,
+        0.25
+      ]
+    }
+  },
+  "model": "doug-a",
+  "run": "doug-a-predict-pytest-20261110T065922Z",
+  "schema_version": 1,
+  "seeds": [
+    1,
+    2,
+    3
+  ],
+  "timestamp": "2026-11-10T07:01:32Z"
+}
