@@ -6,13 +6,17 @@ sft:
     - id: seed-shipments
       path: data/doug-l/seed/sft.jsonl
       weight: 1.0
+    - id: synthetic-shipments
+      path: data/doug-l/synthetic/sft.jsonl
+      weight: 1.0
   filters:
     - name: min-assistant-chars
       min_chars: 80
     - name: exact-duplicate-prompts
       action: drop
   mixture:
-    seed-shipments: 1.0
+    seed-shipments: 0.1
+    synthetic-shipments: 0.9
 
 dpo:
   sources:
