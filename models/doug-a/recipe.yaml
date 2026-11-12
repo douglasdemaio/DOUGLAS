@@ -9,9 +9,6 @@ sft:
     - id: synthetic-incidents
       path: data/doug-a/synthetic/sft.jsonl
       weight: 1.0
-    - id: targeted-root-causes
-      path: data/doug-a/targeted/sft.jsonl
-      weight: 2.0
   filters:
     - name: min-assistant-chars
       min_chars: 80
@@ -20,7 +17,6 @@ sft:
   mixture:
     seed-incidents: 1.0
     synthetic-incidents: 1.0
-    targeted-root-causes: 2.0
 
 dpo:
   sources:
