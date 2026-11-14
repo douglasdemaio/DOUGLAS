@@ -6,6 +6,9 @@ sft:
     - id: seed-shipments
       path: data/doug-l/seed/sft.jsonl
       weight: 1.0
+    - id: seed-tool-response
+      path: data/doug-l/seed/sft_tool_response.jsonl
+      weight: 3.0
     - id: synthetic-shipments
       path: data/doug-l/synthetic/sft.jsonl
       weight: 1.0
@@ -15,8 +18,9 @@ sft:
     - name: exact-duplicate-prompts
       action: drop
   mixture:
-    seed-shipments: 0.1
-    synthetic-shipments: 0.9
+    seed-shipments: 0.05
+    seed-tool-response: 0.25
+    synthetic-shipments: 0.7
 
 dpo:
   sources:
