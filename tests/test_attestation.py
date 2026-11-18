@@ -3,9 +3,10 @@ from __future__ import annotations
 import json
 
 import pytest
+from conftest import tamper_receipt
 
 from scripts import attestation
-from scripts.sign_receipt import generate_keypair, load_private_key, sign_payload
+from scripts.sign_receipt import b64u_encode, generate_keypair, load_private_key, sign_payload
 
 
 def _payload(**overrides):
@@ -54,11 +55,9 @@ def test_tampered_decision_is_rejected(tmp_path):
     pub = tmp_path / "key.pub"
     generate_keypair(priv, pub)
     receipt = attestation.sign_decision(_payload(), priv.read_text().strip())
-    header, body, signature = receipt.split(".")
+    header, _, signature = receipt.split(".")
     forged = json.dumps({"kind": "promotion", "model_id": "doug-a"}).encode()
-    import base64
-
-    forged_body = base64.urlsafe_b64encode(forged).rstrip(b"=").decode()
+    forged_body = b64u_encode(forged)
     with pytest.raises(ValueError, match="signature"):
         attestation.verify_decision(f"{header}.{forged_body}.{signature}", pub)
 
@@ -108,8 +107,7 @@ def test_verify_all_flags_missing_registry_receipt_and_tampering(tmp_path):
     (tmp_path / "registry" / "doug-a.jsonl").write_text("")
     assert any("not in registry" in p for p in attestation.verify_all(root=tmp_path, pub_path=pub))
 
-    header, body, signature = decision.split(".")
-    tampered = f"{header}.{body}.{signature[:-2]}AA"
+    tampered = tamper_receipt(decision)
     path = attestation.decisions_path(tmp_path)
     path.write_text(json.dumps({"receipt": tampered, "payload": {}}) + "\n")
     assert any("invalid" in p for p in attestation.verify_all(root=tmp_path, pub_path=pub))

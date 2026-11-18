@@ -22,7 +22,10 @@ def _policy_file(tmp_path, **overrides):
 def test_first_run_allowed(tmp_path):
     rules = _policy_file(tmp_path)
     ok, reasons = policy.check_start(
-        "doug-a", "a" * 64, now="2026-11-18T12:00:00Z", policy_path=rules,
+        "doug-a",
+        "a" * 64,
+        now="2026-11-18T12:00:00Z",
+        policy_path=rules,
         events_path=tmp_path / "events.jsonl",
     )
     assert ok, reasons
@@ -32,9 +35,7 @@ def test_daily_cap_and_open_pr_are_enforced(tmp_path):
     rules = _policy_file(tmp_path)
     events = tmp_path / "events.jsonl"
     policy.record("run", path=events, ts="2026-11-18T08:00:00Z", model="doug-a", diff="b" * 64)
-    policy.record(
-        "pr_open", path=events, ts="2026-11-18T09:00:00Z", branch="douglas/one"
-    )
+    policy.record("pr_open", path=events, ts="2026-11-18T09:00:00Z", branch="douglas/one")
     ok, reasons = policy.check_start(
         "doug-a", "a" * 64, now="2026-11-18T12:00:00Z", policy_path=rules, events_path=events
     )
@@ -48,9 +49,7 @@ def test_closed_pr_frees_the_slot(tmp_path):
     events = tmp_path / "events.jsonl"
     policy.record("pr_open", path=events, branch="douglas/one")
     policy.record("pr_closed", path=events, branch="douglas/one")
-    ok, reasons = policy.check_start(
-        "doug-a", "a" * 64, policy_path=rules, events_path=events
-    )
+    ok, reasons = policy.check_start("doug-a", "a" * 64, policy_path=rules, events_path=events)
     assert ok, reasons
 
 
@@ -76,8 +75,12 @@ def test_rejected_diff_needs_a_report_reference(tmp_path):
     rules = _policy_file(tmp_path)
     events = tmp_path / "events.jsonl"
     policy.record(
-        "rejection", path=events, ts="2026-11-18T06:00:00Z", model="doug-a",
-        diff="a" * 64, report="rejection-1",
+        "rejection",
+        path=events,
+        ts="2026-11-18T06:00:00Z",
+        model="doug-a",
+        diff="a" * 64,
+        report="rejection-1",
     )
     now = "2026-11-20T12:00:00Z"
     ok, reasons = policy.check_start(
@@ -87,8 +90,12 @@ def test_rejected_diff_needs_a_report_reference(tmp_path):
     assert any("already rejected" in r for r in reasons)
 
     ok, reasons = policy.check_start(
-        "doug-a", "a" * 64, now=now, addresses="rejection-1",
-        policy_path=rules, events_path=events,
+        "doug-a",
+        "a" * 64,
+        now=now,
+        addresses="rejection-1",
+        policy_path=rules,
+        events_path=events,
     )
     assert ok, reasons
 
@@ -103,8 +110,6 @@ def test_unreadable_state_fails_closed(tmp_path):
     rules = _policy_file(tmp_path)
     events = tmp_path / "events.jsonl"
     events.write_text("{not json}\n")
-    ok, reasons = policy.check_start(
-        "doug-a", "a" * 64, policy_path=rules, events_path=events
-    )
+    ok, reasons = policy.check_start("doug-a", "a" * 64, policy_path=rules, events_path=events)
     assert not ok
     assert any("unavailable" in r for r in reasons)

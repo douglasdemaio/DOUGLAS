@@ -137,7 +137,9 @@ def check_start(
             problems.append(f"{kind} event has an invalid timestamp")
             continue
         if elapsed < timedelta(hours=float(cooldowns[kind])):
-            problems.append(f"{kind} cooldown active ({(current - parse_ts(event['ts'])).total_seconds() / 3600:.1f}h ago)")
+            problems.append(
+                f"{kind} cooldown active ({(current - parse_ts(event['ts'])).total_seconds() / 3600:.1f}h ago)"
+            )
 
     prior = [
         event

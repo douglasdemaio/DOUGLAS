@@ -74,9 +74,7 @@ def build_report(
         "run": run,
         "diff_sha256": diff_sha256,
         "addresses": addresses,
-        "what_failed": [
-            {"check": f["check"], "evidence": f["evidence"]} for f in failures
-        ],
+        "what_failed": [{"check": f["check"], "evidence": f["evidence"]} for f in failures],
         "why_it_matters": _dedup([str(f["why"]) for f in failures]),
         "how_to_make_acceptable": _dedup([str(f["fix"]) for f in failures]),
         "root_cause": cause,

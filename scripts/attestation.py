@@ -152,9 +152,7 @@ def verify_all(*, root: Path = ROOT, pub_path: Path = PUBLIC_KEY) -> list[str]:
         if model not in registries:
             path = Path(root) / "registry" / f"{model}.jsonl"
             registries[model] = {
-                str(record.get("receipt"))
-                for record in read_jsonl(path)
-                if record.get("receipt")
+                str(record.get("receipt")) for record in read_jsonl(path) if record.get("receipt")
             }
         if gate_receipt not in registries[model]:
             problems.append(f"{label}: gate receipt is not in registry/{model}.jsonl")
@@ -172,7 +170,9 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.command == "verify":
         try:
-            payload = verify_decision(Path(args.receipt).read_text(encoding="utf-8"), Path(args.pub))
+            payload = verify_decision(
+                Path(args.receipt).read_text(encoding="utf-8"), Path(args.pub)
+            )
         except (OSError, ValueError) as exc:
             print(f"attestation: INVALID — {exc}")
             return 1

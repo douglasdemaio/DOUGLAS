@@ -33,9 +33,7 @@ SECRET_KEYS = frozenset(
         "HUGGING_FACE_HUB_TOKEN",
     }
 )
-ALLOWED_ENV = frozenset(
-    {"PATH", "HOME", "LANG", "LC_ALL", "PYTHON", "VIRTUAL_ENV", "TMPDIR", "CI"}
-)
+ALLOWED_ENV = frozenset({"PATH", "HOME", "LANG", "LC_ALL", "PYTHON", "VIRTUAL_ENV", "TMPDIR", "CI"})
 PROXY_OFF = {
     "HTTP_PROXY": "http://127.0.0.1:1",
     "HTTPS_PROXY": "http://127.0.0.1:1",
@@ -78,7 +76,9 @@ def artifact_roots(root: Path = ROOT, env: dict[str, str] | None = None) -> list
     return roots
 
 
-def assert_writable(path: Path | str, *, root: Path = ROOT, env: dict[str, str] | None = None) -> Path:
+def assert_writable(
+    path: Path | str, *, root: Path = ROOT, env: dict[str, str] | None = None
+) -> Path:
     """Resolve symlinks and require the target to be inside an allowed root."""
     target = Path(path).resolve()
     for allowed in artifact_roots(root, env):

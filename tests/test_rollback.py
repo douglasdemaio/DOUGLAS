@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 
 import pytest
+from conftest import tamper_receipt
 
 from scripts import attestation, rollback
 from scripts.common import read_jsonl, write_json
@@ -67,14 +68,35 @@ def _setup(tmp_path):
         ),
         encoding="utf-8",
     )
-    _promotion(tmp_path, key_text, key, "run-old", "a" * 64, "old-adapter",
-               "2026-11-01T00:00:01Z", old_receipt)
-    _promotion(tmp_path, key_text, key, "run-new", "b" * 64, "new-adapter",
-               "2026-11-02T00:00:01Z", new_receipt)
+    _promotion(
+        tmp_path,
+        key_text,
+        key,
+        "run-old",
+        "a" * 64,
+        "old-adapter",
+        "2026-11-01T00:00:01Z",
+        old_receipt,
+    )
+    _promotion(
+        tmp_path,
+        key_text,
+        key,
+        "run-new",
+        "b" * 64,
+        "new-adapter",
+        "2026-11-02T00:00:01Z",
+        new_receipt,
+    )
     write_json(
         rollback.champion_path("doug-a", tmp_path),
-        {"model": "doug-a", "run": "run-new", "adapter_sha256": "new-adapter",
-         "promoted_at": "2026-11-02T00:00:01Z", "receipt": new_receipt},
+        {
+            "model": "doug-a",
+            "run": "run-new",
+            "adapter_sha256": "new-adapter",
+            "promoted_at": "2026-11-02T00:00:01Z",
+            "receipt": new_receipt,
+        },
     )
     return key_text, pub, old_receipt, new_receipt
 
@@ -114,8 +136,7 @@ def test_rollback_refuses_a_tampered_earlier_attestation(tmp_path):
     key_text, pub, old_receipt, new_receipt = _setup(tmp_path)
     path = attestation.decisions_path(tmp_path)
     entries = [json.loads(line) for line in path.read_text().splitlines()]
-    header, body, signature = entries[0]["receipt"].split(".")
-    entries[0]["receipt"] = f"{header}.{body}.{signature[:-2]}AA"
+    entries[0]["receipt"] = tamper_receipt(entries[0]["receipt"])
     path.write_text("".join(json.dumps(e) + "\n" for e in entries))
 
     with pytest.raises(rollback.RollbackError):
