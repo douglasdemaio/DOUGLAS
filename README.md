@@ -50,7 +50,10 @@ evals/<id>/harness/         graders; DOUG-A sandboxes patches, DOUG-L calls the 
 experiments/ledger.jsonl    every job, eval, decision and promotion
 registry/<id>.jsonl         signed promotion receipts
 registry/verification_key.pub   Ed25519 public key
-scripts/                    gate, signing, contamination, budget, eval, train
+reviews/                    fail-closed review: policy, events, rejections, decisions
+reviews/rejections.jsonl    append-only rejection log (+ reviews/reports/*.md)
+reviews/decisions.jsonl     signed promotion/rollback attestations
+scripts/                    gate, signing, review, containment, attestation, rollback, eval, train
 .github/workflows/douglas-improvement.md   the scheduled agent loop (gh-aw source)
 ```
 
@@ -91,6 +94,41 @@ python -m scripts.sign_receipt verify --receipt receipt.jws \
 - A challenger is promoted only when the primary metric beats the champion by
   more than `max(noise_margin, challenger_std + champion_std)`, no guarded metric
   regresses past its tolerance, contamination is clean, and the receipt signs.
+
+## Fail-closed review
+
+Every proposed change must pass the full review before it can be promoted. A
+missing check, an unavailable gate, an unverifiable receipt or a write/network
+outside the repo and artifact store stops the loop with exit code `2` — it is
+never skipped. See
+`docs/specs/2026-11-18-testing-review-system-design.md` for the requirement map
+and `docs/reports/example-rejection-2026-11-18.md` for a sample rejection.
+
+```bash
+make review MODEL=doug-a CHALLENGER=results/<run> BASE=origin/main \
+  PREDICTIONS=results/<run>/predictions.jsonl   # run every check; write a report on rejection
+make attestations              # verify every signed decision + linked gate receipt
+make rollback MODEL=doug-a     # restore the previous signed champion; emits its own receipt
+make policy MODEL=doug-a DIFF=<sha256>          # run cap, open-PR cap, cooldown, prior rejection
+make rejections                # list rejection reports
+```
+
+- The review re-runs `make check`, `make scope` and `make protect`, verifies the
+  frozen manifest, refuses fewer than 3 seeds, re-grades `predictions.jsonl`
+  from a committed run, and only then invokes the CI gate. It never writes to
+  `registry/`, `baseline.json` or a champion file — only `scripts.gate` promotes.
+- Each rejection appends a report with **What failed / Why it matters / What
+  would make it acceptable / Root cause** to `reviews/rejections.jsonl` and a
+  Markdown copy under `reviews/reports/`. Link the report from the PR. The same
+  diff hash cannot be resubmitted until a new run names that report in
+  `--addresses`.
+- The agent cannot edit the gate, signing code, frozen sets, thresholds, keys
+  or workflows — `make protect` enforces this. Only a human-reviewed PR can.
+- Promotions carry a signed decision attestation (diff, per-seed results, gate
+  decision, parent champion, gate receipt, timestamp). Rollback restores only a
+  previously verified signed champion and signs its own receipt.
+- At most one open PR, one run per day, and a 24-hour cooldown after a rejection
+  or rollback are enforced by `reviews/policy.json` and `reviews/events.jsonl`.
 
 ## Bootstrap notice
 
