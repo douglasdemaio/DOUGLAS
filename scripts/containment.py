@@ -3,7 +3,7 @@
 Writes are confined to the repository and its artifact store (results/,
 _hub/ and $DOUGLAS_ARTIFACT_DIR). Subprocesses get a minimal environment,
 network calls fail unless explicitly allowed, and every violation is appended
-to reviews/containment.jsonl before the process halts.
+to docs/reviews/containment.jsonl before the process halts.
 
     python -m scripts.containment check --path results/run/scores.json
     python -m scripts.containment log
@@ -53,7 +53,7 @@ class ContainmentViolation(RuntimeError):
 
 
 def containment_log(root: Path = ROOT) -> Path:
-    return Path(root) / "reviews" / "containment.jsonl"
+    return Path(root) / "docs" / "reviews" / "containment.jsonl"
 
 
 def record_violation(kind: str, detail: str, *, root: Path = ROOT) -> dict[str, Any]:

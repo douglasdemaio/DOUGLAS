@@ -2,8 +2,8 @@
 
 Every rejected change gets a report with four sections: what failed, why it
 matters, what would make it acceptable, and a root cause (never a silent
-guess). Reports are appended to reviews/rejections.jsonl and written as
-human-readable Markdown under reviews/reports/.
+guess). Reports are appended to docs/reviews/rejections.jsonl and written as
+human-readable Markdown under docs/reviews/reports/.
 
     python -m scripts.rejection list [--model doug-a] [--diff <sha256>]
 """
@@ -24,7 +24,7 @@ SECTIONS = ("what_failed", "why_it_matters", "how_to_make_acceptable", "root_cau
 
 
 def rejection_paths(root: Path = ROOT) -> tuple[Path, Path]:
-    reviews = Path(root) / "reviews"
+    reviews = Path(root) / "docs" / "reviews"
     return reviews / "rejections.jsonl", reviews / "reports"
 
 

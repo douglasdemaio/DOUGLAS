@@ -3,7 +3,7 @@
 The gate keeps signing its own compact JWS receipt in registry/<id>.jsonl.
 This module signs a *separate* receipt carrying the full decision trace:
 diff, per-seed results, gate decision, parent champion and timestamp. It is
-appended to reviews/decisions.jsonl. Only the key in $DOUGLAS_SIGNING_KEY can
+appended to docs/reviews/decisions.jsonl. Only the key in $DOUGLAS_SIGNING_KEY can
 sign; the public key in registry/verification_key.pub verifies both receipts.
 
     python -m scripts.attestation verify-all
@@ -26,7 +26,7 @@ from scripts.sign_receipt import (
     verify_receipt,
 )
 
-DECISIONS = ROOT / "reviews" / "decisions.jsonl"
+DECISIONS = ROOT / "docs" / "reviews" / "decisions.jsonl"
 PUBLIC_KEY = ROOT / "registry" / "verification_key.pub"
 REQUIRED_FIELDS = (
     "kind",
@@ -46,7 +46,7 @@ REQUIRED_FIELDS = (
 
 
 def decisions_path(root: Path = ROOT) -> Path:
-    return Path(root) / "reviews" / "decisions.jsonl"
+    return Path(root) / "docs" / "reviews" / "decisions.jsonl"
 
 
 def build_payload(

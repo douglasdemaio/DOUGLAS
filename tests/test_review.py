@@ -36,13 +36,14 @@ def _scores():
 
 
 def _setup(tmp_path):
-    for name in ("reviews", "results", "registry"):
+    for name in ("results", "registry"):
         (tmp_path / name).mkdir()
-    (tmp_path / "reviews" / "policy.json").write_text(
-        (ROOT / "reviews" / "policy.json").read_text()
+    (tmp_path / "docs" / "reviews").mkdir(parents=True)
+    (tmp_path / "docs" / "reviews" / "policy.json").write_text(
+        (ROOT / "docs" / "reviews" / "policy.json").read_text()
     )
     for name in ("rejections.jsonl", "events.jsonl", "decisions.jsonl", "containment.jsonl"):
-        (tmp_path / "reviews" / name).write_text("")
+        (tmp_path / "docs" / "reviews" / name).write_text("")
 
     priv = tmp_path / "signing_key"
     pub = tmp_path / "registry" / "verification_key.pub"
@@ -123,7 +124,9 @@ def test_review_passes_and_signs_a_decision(tmp_path, monkeypatch):
     assert payload["frozen_eval_sha256"] == frozen_sha256("doug-a")
     assert attestation.verify_decision(decisions[0]["receipt"], pub)["run"] == "bad-run"
     assert _reports(tmp_path) == []
-    assert list(policy.read_events(tmp_path / "reviews" / "events.jsonl"))[0]["kind"] == "run"
+    assert (
+        list(policy.read_events(tmp_path / "docs" / "reviews" / "events.jsonl"))[0]["kind"] == "run"
+    )
 
 
 def test_review_rejects_a_weak_challenger_with_a_report(tmp_path, monkeypatch):
@@ -144,7 +147,7 @@ def test_review_rejects_a_weak_challenger_with_a_report(tmp_path, monkeypatch):
     assert "fix_rate" in reports[0]["what_failed"][0]["evidence"]
     for section in rejection.SECTIONS:
         assert reports[0][section]
-    assert (tmp_path / "reviews" / "reports" / f"{reports[0]['id']}.md").exists()
+    assert (tmp_path / "docs" / "reviews" / "reports" / f"{reports[0]['id']}.md").exists()
 
 
 def test_review_rejects_too_few_seeds_before_calling_the_gate(tmp_path, monkeypatch):
@@ -196,7 +199,7 @@ def test_review_halts_when_predictions_are_missing(tmp_path, monkeypatch):
 def test_review_halts_on_frozen_suite_drift(tmp_path, monkeypatch):
     key, pub, diff, scores = _setup(tmp_path)
     _wire(monkeypatch, tmp_path, key, "pass")
-    (tmp_path / "reviews" / "decisions.jsonl").write_text(
+    (tmp_path / "docs" / "reviews" / "decisions.jsonl").write_text(
         json.dumps(
             {"receipt": "x", "payload": {"model_id": "doug-a", "frozen_eval_sha256": "0" * 64}}
         )

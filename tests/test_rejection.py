@@ -64,8 +64,8 @@ def test_write_report_appends_and_never_rewrites(tmp_path):
     report = _report()
     path, report_id = rejection.write_report(report, root=tmp_path)
     assert path.endswith(f"{report_id}.md")
-    assert report_id in (tmp_path / "reviews" / "reports" / f"{report_id}.md").read_text()
-    log = tmp_path / "reviews" / "rejections.jsonl"
+    assert report_id in (tmp_path / "docs" / "reviews" / "reports" / f"{report_id}.md").read_text()
+    log = tmp_path / "docs" / "reviews" / "rejections.jsonl"
     first = [json.loads(line) for line in log.read_text().splitlines()]
     assert first == [report]
 

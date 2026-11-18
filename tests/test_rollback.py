@@ -116,7 +116,7 @@ def test_rollback_restores_previous_signed_champion(tmp_path):
     assert ledger[-1]["kind"] == "rollback"
     assert ledger[-1]["to"] == old_receipt
     assert attestation.verify_decision(receipt, pub)["kind"] == "rollback"
-    events = list(read_jsonl(tmp_path / "reviews" / "events.jsonl"))
+    events = list(read_jsonl(tmp_path / "docs" / "reviews" / "events.jsonl"))
     assert events[-1]["kind"] == "rollback"
 
 

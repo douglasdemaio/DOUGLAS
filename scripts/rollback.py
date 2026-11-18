@@ -95,7 +95,7 @@ def rollback(
         Path(root) / "baseline.json",
         Path(root) / "experiments" / "ledger.jsonl",
         attestation.decisions_path(root),
-        Path(root) / "reviews" / "events.jsonl",
+        Path(root) / "docs" / "reviews" / "events.jsonl",
     ]
     for path in paths:
         containment.assert_writable(path, root=root)

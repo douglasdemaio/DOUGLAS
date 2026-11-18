@@ -123,7 +123,7 @@ def _report(
     path, report_id = rejection.write_report(report, root=root)
     policy.record(
         "rejection",
-        path=root / "reviews" / "events.jsonl",
+        path=root / "docs" / "reviews" / "events.jsonl",
         model=model,
         diff=diff_sha256,
         report=report_id,
@@ -148,7 +148,7 @@ def _diff_text(root: Path, diff_file: str | None, base: str, env: dict[str, str]
 
 def _latest_frozen_hash(model: str, root: Path) -> str | None:
     latest = None
-    for entry in read_jsonl(root / "reviews" / "decisions.jsonl"):
+    for entry in read_jsonl(root / "docs" / "reviews" / "decisions.jsonl"):
         payload = entry.get("payload") or {}
         if payload.get("model_id") == model:
             latest = payload
@@ -195,7 +195,7 @@ def review(
     now: str | None = None,
 ) -> int:
     """Run every check in order. Returns PASS / REJECT / HALT."""
-    events = root / "reviews" / "events.jsonl"
+    events = root / "docs" / "reviews" / "events.jsonl"
     original_connect = None
     try:
         if allow_network:
@@ -230,7 +230,7 @@ def review(
             diff_digest,
             addresses=addresses,
             now=now,
-            policy_path=root / "reviews" / "policy.json",
+            policy_path=root / "docs" / "reviews" / "policy.json",
             events_path=events,
         )
         if not allowed:

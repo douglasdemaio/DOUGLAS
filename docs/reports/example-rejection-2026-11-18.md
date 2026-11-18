@@ -1,5 +1,5 @@
 <!-- Illustrative example of a system-generated rejection report. This is not
-     an entry in reviews/rejections.jsonl; it shows the four-section format the
+     an entry in docs/reviews/rejections.jsonl; it shows the four-section format the
      agent must produce for every rejected change. See the design doc at
      docs/specs/2026-11-18-testing-review-system-design.md. -->
 

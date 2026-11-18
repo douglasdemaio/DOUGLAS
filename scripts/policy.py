@@ -1,6 +1,6 @@
 """Run-rate, PR and cooldown policy for the DOUGLAS review loop.
 
-All state lives in append-only reviews/events.jsonl. Missing or unreadable
+All state lives in append-only docs/reviews/events.jsonl. Missing or unreadable
 state means "no run": the policy fails closed.
 
     python -m scripts.policy check --model doug-a --diff <sha256>
@@ -25,8 +25,8 @@ from scripts.common import (
     utc_now_iso,
 )
 
-POLICY_PATH = ROOT / "reviews" / "policy.json"
-EVENTS_PATH = ROOT / "reviews" / "events.jsonl"
+POLICY_PATH = ROOT / "docs" / "reviews" / "policy.json"
+EVENTS_PATH = ROOT / "docs" / "reviews" / "events.jsonl"
 KINDS = {"run", "pr_open", "pr_closed", "rejection", "rollback", "network_allowed"}
 
 
