@@ -9,9 +9,12 @@ JOB ?=
 CHALLENGER ?=
 ENGINE ?=
 PREDICTIONS ?=
+DIFF_FILE ?=
+ADDRESSES ?=
+DIFF ?=
 BASE ?= origin/main
 
-.PHONY: help setup check lint harness eval train job-status gate contamination scope protect baseline scrub clean
+.PHONY: help setup check lint harness eval train job-status gate contamination scope protect baseline scrub clean review rollback attestations policy rejections
 
 help:
 	@echo "make setup                      install the pinned CPU environment into .venv"
@@ -23,6 +26,11 @@ help:
 	@echo "make contamination MODEL=       n-gram + embedding overlap, data/ vs evals/frozen/"
 	@echo "make scope                      one-model, one-concern diff check"
 	@echo "make protect                    protected-file diff check"
+	@echo "make review MODEL= CHALLENGER=  run every check; write a report on rejection"
+	@echo "make rollback MODEL=            restore the previous signed champion"
+	@echo "make attestations               verify every signed decision receipt"
+	@echo "make policy MODEL= DIFF=        check run caps, cooldown and open PRs"
+	@echo "make rejections                 list rejection reports"
 	@echo "make baseline                   print baseline.json contents"
 	@echo "make scrub IN= OUT=             redact PII from a document"
 
@@ -67,6 +75,24 @@ scope:
 
 protect:
 	$(PYTHON) -m scripts.protect --base "$(BASE)"
+
+review:
+	@test -n "$(MODEL)" -a -n "$(CHALLENGER)" || (echo "MODEL and CHALLENGER are required" && exit 2)
+	$(PYTHON) -m scripts.review --model "$(MODEL)" --challenger "$(CHALLENGER)" --base "$(BASE)" $(if $(DIFF_FILE),--diff-file "$(DIFF_FILE)",) $(if $(PREDICTIONS),--predictions "$(PREDICTIONS)",) $(if $(ADDRESSES),--addresses "$(ADDRESSES)",)
+
+rollback:
+	@test -n "$(MODEL)" || (echo "MODEL is required" && exit 2)
+	$(PYTHON) -m scripts.rollback --model "$(MODEL)"
+
+attestations:
+	$(PYTHON) -m scripts.attestation verify-all
+
+policy:
+	@test -n "$(MODEL)" -a -n "$(DIFF)" || (echo "MODEL and DIFF are required" && exit 2)
+	$(PYTHON) -m scripts.policy check --model "$(MODEL)" --diff "$(DIFF)" $(if $(ADDRESSES),--addresses "$(ADDRESSES)",)
+
+rejections:
+	$(PYTHON) -m scripts.rejection list
 
 baseline:
 	@cat baseline.json
