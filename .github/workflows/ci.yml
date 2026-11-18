@@ -44,3 +44,6 @@ jobs:
         run: |
           python -m scripts.contamination --model doug-a
           python -m scripts.contamination --model doug-l
+
+      - name: Signed decision receipts verify
+        run: python -m scripts.attestation verify-all
