@@ -66,7 +66,7 @@ def test_network_call_is_logged_and_blocked(tmp_path):
     original = containment.block_network(root=tmp_path)
     try:
         with pytest.raises(containment.ContainmentViolation, match="network"):
-            socket.create_connection(("example.com", 80), timeout=1)
+            socket.create_connection(("1.1.1.1", 80), timeout=1)
     finally:
         containment.restore_network(original)
     logged = containment.violations(root=tmp_path)
