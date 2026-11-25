@@ -14,12 +14,13 @@ ADDRESSES ?=
 DIFF ?=
 BASE ?= origin/main
 
-.PHONY: help setup check lint harness eval train job-status gate contamination scope protect baseline scrub clean review rollback attestations policy rejections
+.PHONY: help setup check lint harness eval h3do-eval train job-status gate contamination scope protect baseline scrub clean review rollback attestations policy rejections
 
 help:
 	@echo "make setup                      install the pinned CPU environment into .venv"
 	@echo "make check [REPEAT=n]           lint + unit tests + harness self-tests (CPU, hermetic)"
 	@echo "make eval MODEL= CKPT= SEEDS=3  evaluate a checkpoint and write results/<run>/scores.json"
+	@echo "make h3do-eval SEEDS=3          run the offline H3-DO baseline harness"
 	@echo "make train MODEL=               submit a GPU job (does not block)"
 	@echo "make job-status JOB=<id>        pending | running | done | failed"
 	@echo "make gate MODEL= CHALLENGER=<run>   promotion gate (CI runs this)"
@@ -53,6 +54,9 @@ harness:
 eval:
 	@test -n "$(MODEL)" || (echo "MODEL is required" && exit 2)
 	bash scripts/eval.sh --model "$(MODEL)" --ckpt "$(CKPT)" --seeds "$(SEEDS)" $(if $(ENGINE),--engine "$(ENGINE)",) $(if $(PREDICTIONS),--predictions "$(PREDICTIONS)",)
+
+h3do-eval:
+	$(PYTHON) -m evals.h3do.tools.baseline --seeds $(or $(SEEDS),3) $(if $(OUT),--out "$(OUT)",)
 
 train:
 	@test -n "$(MODEL)" || (echo "MODEL is required" && exit 2)

@@ -1,0 +1,46 @@
+{
+  "schema_version": 1,
+  "track": "h3do",
+  "profile": "research-short-4s",
+  "base_repo": "MiniMaxAI/MiniMax-H3",
+  "base_revision": "12253298adb81e36757eabebb81d2ba1c0cc70cc",
+  "variant": "FL2VA",
+  "duration_seconds": 4,
+  "resolution": {
+    "width": 768,
+    "height": 432
+  },
+  "seeds_required": 3,
+  "artifact_tolerance": 0.05,
+  "audio_sync_tolerance_seconds": 0.25,
+  "items": [
+    {
+      "id": "h3do-t2v-001",
+      "prompt_id": "p001",
+      "task": "t2va",
+      "duration_seconds": 4,
+      "reference_images": []
+    },
+    {
+      "id": "h3do-t2v-002",
+      "prompt_id": "p002",
+      "task": "t2va",
+      "duration_seconds": 4,
+      "reference_images": []
+    },
+    {
+      "id": "h3do-t2v-003",
+      "prompt_id": "p003",
+      "task": "t2va",
+      "duration_seconds": 4,
+      "reference_images": []
+    },
+    {
+      "id": "h3do-t2v-004",
+      "prompt_id": "p004",
+      "task": "t2va",
+      "duration_seconds": 4,
+      "reference_images": []
+    }
+  ]
+}
