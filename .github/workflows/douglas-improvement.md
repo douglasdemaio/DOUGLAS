@@ -54,7 +54,9 @@ engine:
   id: pi
   # The hf/ prefix is a gh-aw custom-provider marker, not part of the model ID.
   # The compiled workflow forwards the nested owner/name value to the router.
-  model: hf/${{ contains(github.event.schedule, ' * * 1') && 'openai/gpt-oss-120b' || contains(github.event.schedule, ' * * 2') && 'Qwen/Qwen3-Coder-30B-A3B-Instruct' || contains(github.event.schedule, ' * * 3') && 'deepseek-ai/DeepSeek-V3.2' || contains(github.event.schedule, ' * * 4') && 'openai/gpt-oss-120b' || contains(github.event.schedule, ' * * 5') && 'Qwen/Qwen3-Coder-30B-A3B-Instruct' || 'openai/gpt-oss-120b' }}
+  # Do not use HF IDs namespaced under openai/: AWF strips that prefix on the
+  # openai provider before the request reaches the router.
+  model: hf/${{ contains(github.event.schedule, ' * * 1') && 'meta-llama/Llama-3.3-70B-Instruct' || contains(github.event.schedule, ' * * 2') && 'Qwen/Qwen3-Coder-30B-A3B-Instruct' || contains(github.event.schedule, ' * * 3') && 'deepseek-ai/DeepSeek-V3.2' || contains(github.event.schedule, ' * * 4') && 'meta-llama/Llama-3.3-70B-Instruct' || contains(github.event.schedule, ' * * 5') && 'Qwen/Qwen3-Coder-30B-A3B-Instruct' || 'meta-llama/Llama-3.3-70B-Instruct' }}
   model-provider: openai
   env:
     OPENAI_BASE_URL: https://router.huggingface.co/v1
@@ -122,7 +124,7 @@ steps:
   - name: Record baseline
     env:
       HF_TOKEN: ${{ secrets.HF_TOKEN }}
-      REASONER_MODEL: ${{ contains(github.event.schedule, ' * * 1') && 'openai/gpt-oss-120b' || contains(github.event.schedule, ' * * 2') && 'Qwen/Qwen3-Coder-30B-A3B-Instruct' || contains(github.event.schedule, ' * * 3') && 'deepseek-ai/DeepSeek-V3.2' || contains(github.event.schedule, ' * * 4') && 'openai/gpt-oss-120b' || contains(github.event.schedule, ' * * 5') && 'Qwen/Qwen3-Coder-30B-A3B-Instruct' || 'openai/gpt-oss-120b' }}
+      REASONER_MODEL: ${{ contains(github.event.schedule, ' * * 1') && 'meta-llama/Llama-3.3-70B-Instruct' || contains(github.event.schedule, ' * * 2') && 'Qwen/Qwen3-Coder-30B-A3B-Instruct' || contains(github.event.schedule, ' * * 3') && 'deepseek-ai/DeepSeek-V3.2' || contains(github.event.schedule, ' * * 4') && 'meta-llama/Llama-3.3-70B-Instruct' || contains(github.event.schedule, ' * * 5') && 'Qwen/Qwen3-Coder-30B-A3B-Instruct' || 'meta-llama/Llama-3.3-70B-Instruct' }}
     run: |
       set -uo pipefail
       mkdir -p /tmp/gh-aw/agent
@@ -164,7 +166,7 @@ safe-outputs:
       output: "Training job submitted; the pull-request branch records the job id in experiments/ledger.jsonl."
       env:
         HF_TOKEN: ${{ secrets.HF_TOKEN }}
-        REASONER_MODEL: ${{ contains(github.event.schedule, ' * * 1') && 'openai/gpt-oss-120b' || contains(github.event.schedule, ' * * 2') && 'Qwen/Qwen3-Coder-30B-A3B-Instruct' || contains(github.event.schedule, ' * * 3') && 'deepseek-ai/DeepSeek-V3.2' || contains(github.event.schedule, ' * * 4') && 'openai/gpt-oss-120b' || contains(github.event.schedule, ' * * 5') && 'Qwen/Qwen3-Coder-30B-A3B-Instruct' || 'openai/gpt-oss-120b' }}
+        REASONER_MODEL: ${{ contains(github.event.schedule, ' * * 1') && 'meta-llama/Llama-3.3-70B-Instruct' || contains(github.event.schedule, ' * * 2') && 'Qwen/Qwen3-Coder-30B-A3B-Instruct' || contains(github.event.schedule, ' * * 3') && 'deepseek-ai/DeepSeek-V3.2' || contains(github.event.schedule, ' * * 4') && 'meta-llama/Llama-3.3-70B-Instruct' || contains(github.event.schedule, ' * * 5') && 'Qwen/Qwen3-Coder-30B-A3B-Instruct' || 'meta-llama/Llama-3.3-70B-Instruct' }}
       inputs:
         model:
           description: "Model to train"
@@ -236,7 +238,7 @@ safe-outputs:
       model-provider: openai
       # openai/ here is a gh-aw provider marker; detection receives the same
       # fully qualified owner/name model ID as the reasoner.
-      model: openai/${{ contains(github.event.schedule, ' * * 1') && 'openai/gpt-oss-120b' || contains(github.event.schedule, ' * * 2') && 'Qwen/Qwen3-Coder-30B-A3B-Instruct' || contains(github.event.schedule, ' * * 3') && 'deepseek-ai/DeepSeek-V3.2' || contains(github.event.schedule, ' * * 4') && 'openai/gpt-oss-120b' || contains(github.event.schedule, ' * * 5') && 'Qwen/Qwen3-Coder-30B-A3B-Instruct' || 'openai/gpt-oss-120b' }}
+      model: openai/${{ contains(github.event.schedule, ' * * 1') && 'meta-llama/Llama-3.3-70B-Instruct' || contains(github.event.schedule, ' * * 2') && 'Qwen/Qwen3-Coder-30B-A3B-Instruct' || contains(github.event.schedule, ' * * 3') && 'deepseek-ai/DeepSeek-V3.2' || contains(github.event.schedule, ' * * 4') && 'meta-llama/Llama-3.3-70B-Instruct' || contains(github.event.schedule, ' * * 5') && 'Qwen/Qwen3-Coder-30B-A3B-Instruct' || 'meta-llama/Llama-3.3-70B-Instruct' }}
       api-target: router.huggingface.co
       env:
         OPENAI_BASE_URL: https://router.huggingface.co/v1
