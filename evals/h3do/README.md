@@ -19,8 +19,8 @@ during tests.
 
 - `config.yaml` — pinned Pika H3 Flex revision, adapter paths, upstream MiniMax
   H3 base, and research profile.
-- `research/eval_manifest.json` — item IDs, prompts, seeds, duration, and
-  tolerance settings.
+- `research/eval_manifest.json` — pinned Pika adapter identity, upstream base,
+  item IDs, prompts, seeds, duration, and tolerance settings.
 - `research/prompts.jsonl` — authored text prompts.
 - `research/synthetic_predictions.jsonl` — numeric fixture used by tests and
   the offline smoke command. It contains no generated media.
@@ -28,6 +28,19 @@ during tests.
 - `tools/quality_metrics.py` — deterministic visual-quality scoring.
 - `tools/speed_metrics.py` — latency, GPU time, VRAM, and throughput scoring.
 - `tools/report.py` — aggregation and Markdown reporting.
+
+## Manifest identity
+
+The manifest records the same pinned target as `config.yaml`:
+
+- `model`: `pika-h3-flex`
+- `adapter_repo` / `adapter_revision`: the pinned Pika H3 Flex repository and
+  revision
+- `adapter_path`: the FL2VA adapter used by this research profile
+- `upstream_base_repo` / `upstream_base_revision`: the pinned MiniMax H3 base
+
+This metadata is descriptive only. It does not download weights or change the
+offline scoring path.
 
 ## Prediction contract
 
