@@ -308,6 +308,14 @@ instead of the raw `experiments/ledger.jsonl`: the raw file has exceeded the
 gateway request limit. Use it with the last 10 closed PRs from this workflow for
 the no-repeat check.
 
+## Promotion boundary
+
+`registry/`, `baseline.json`, and champion-status prose in `README.md` are written only
+by the CI promotion gate. Never edit them or claim a champion in a PR title, body, or
+commit message. A PR may propose evidence; it does not promote a model. If a scored
+`run` is already in `experiments/ledger.jsonl`, it is not new work: do not append a
+duplicate eval entry or re-open that proposal without new evidence.
+
 - If `make check` is **red**, that's your concern for this run: fix the harness or
   code, and touch no training settings. Re-run with `-count`-style repeats
   (`make check REPEAT=3`) first. If it passes on a later attempt without any
@@ -315,11 +323,13 @@ the no-repeat check.
   "fixing" it.
 - If the eval queue says **AWAITING PREDICT**, a trained adapter has no scores yet. Submit a
   `predict` job for it (see below). That is this run's concern.
-- If the eval queue lists a **scored run**, its predictions and scores are already in
-  `results/<run>/`. Re-grade hermetically with
+- If the eval queue lists a **scored run**, first check `/tmp/gh-aw/agent/ledger.txt` for
+  that `run`. If it is already recorded, skip it and choose another concern; do not
+  append a duplicate or re-open the proposal without new evidence. Otherwise its
+  predictions and scores are already in `results/<run>/`. Re-grade hermetically with
   `make eval MODEL=<id> CKPT=<run> SEEDS=3 ENGINE=replay PREDICTIONS=results/<run>/predictions.jsonl`
-  (no endpoint needed), append the result to the ledger, and open a PR if it clears the noise
-  margin. That counts as this run's concern.
+  (no endpoint needed), append one new result to the ledger, and open a PR if it clears
+  the noise margin. That counts as this run's concern.
 - If a job is still **running**, don't submit another one for that model.
 - Otherwise, pick **one** model and **one** recipe or hyperparameter change, run `make check`,
   open the pull request on a `douglas/...` branch, and submit the training job with the
@@ -371,7 +381,8 @@ Every run MUST end with exactly one terminal safe-output call. If you open a PR,
 call `create-pull-request` with the title `douglas-improvement: <model> — <concern>`
 and a body containing a `Reasoner model:` line copied from the baseline, the
 hypothesis, the diff summary, the score table (champion vs challenger, mean ± std,
-≥3 seeds), the contamination result, and the ledger entry. If nothing is worth
-proposing, call `noop` with a short message describing what you checked; do not
-open a PR. A plain-text final answer is not a terminal output and will fail the
-run.
+≥3 seeds), the contamination result, and the ledger entry. Never use
+`champion-promotion` as the concern or describe a model as promoted; `make gate`
+in CI owns that transition. If nothing is worth proposing, call `noop` with a short
+message describing what you checked; do not open a PR. A plain-text final answer
+is not a terminal output and will fail the run.
