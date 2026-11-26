@@ -127,6 +127,11 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--stage", choices=["sft", "dpo", "predict"], default="sft")
     parser.add_argument("--hypothesis", default="unspecified")
     parser.add_argument("--concern", default="unspecified")
+    parser.add_argument(
+        "--reasoner-model",
+        default="unspecified",
+        help="Open-weight reasoner that proposed this job, recorded in the ledger",
+    )
     parser.add_argument("--init-adapter")
     parser.add_argument("--max-steps", type=int)
     parser.add_argument("--run", help="eval run name (predict stage)")
@@ -197,6 +202,7 @@ def main(argv: list[str] | None = None) -> int:
         "flavor": flavor,
         "hypothesis": args.hypothesis,
         "concern": args.concern,
+        "reasoner_model": args.reasoner_model,
         "recipe_sha256": recipe_sha256(args.model),
         "commit": current_sha(),
         "adapter_repo": adapter_repo,
