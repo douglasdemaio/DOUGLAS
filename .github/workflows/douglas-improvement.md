@@ -361,8 +361,11 @@ retry with a different flavor or a smaller eval.
 
 ## Output
 
-One PR titled `douglas-improvement: <model> — <concern>`, whose body contains a
-`Reasoner model:` line copied from the baseline, the hypothesis, the diff
-summary, the score table (champion vs challenger, mean ± std, ≥3 seeds), the
-contamination result, and the ledger entry. If nothing is worth proposing, write a
-short summary of what you checked, with no PR.
+Every run MUST end with exactly one terminal safe-output call. If you open a PR,
+call `create-pull-request` with the title `douglas-improvement: <model> — <concern>`
+and a body containing a `Reasoner model:` line copied from the baseline, the
+hypothesis, the diff summary, the score table (champion vs challenger, mean ± std,
+≥3 seeds), the contamination result, and the ledger entry. If nothing is worth
+proposing, call `noop` with a short message describing what you checked; do not
+open a PR. A plain-text final answer is not a terminal output and will fail the
+run.
