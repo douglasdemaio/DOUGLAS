@@ -50,6 +50,7 @@ permissions:
   contents: read
   issues: read
   pull-requests: read
+  copilot-requests: write
 engine:
   id: pi
   # The hf/ prefix is a gh-aw custom-provider marker, not part of the model ID.
@@ -234,11 +235,18 @@ safe-outputs:
             git push origin "HEAD:refs/heads/$branch"
   threat-detection:
     # Codex on the HF router sent a >100 KB /responses body and got HTTP 413,
-    # leaving no verdict. Copilot's gateway accepts the full agent output.
-    # Use a GPT model only: no Anthropic secret or model in this path.
+    # leaving no verdict. Copilot CLI's chat-completions BYOK route accepts the
+    # full detector prompt through the existing HF account. The Actions token
+    # from copilot-requests starts the CLI; inference uses HF_TOKEN only.
+    # No Anthropic model or secret is used here.
     engine:
       id: copilot
-      model: copilot/gpt-5.4
+      model: meta-llama/Llama-3.3-70B-Instruct
+      env:
+        COPILOT_PROVIDER_BASE_URL: https://router.huggingface.co/v1
+        COPILOT_PROVIDER_API_KEY: ${{ secrets.HF_TOKEN }}
+        COPILOT_PROVIDER_TYPE: openai
+        COPILOT_PROVIDER_WIRE_API: completions
     continue-on-error: false
     retries: 2
 concurrency:
