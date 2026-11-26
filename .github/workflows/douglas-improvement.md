@@ -140,6 +140,7 @@ steps:
         done
         echo "## budget used today"; python -m scripts.budget --today
       } | tee /tmp/gh-aw/agent/baseline.txt
+      python -m scripts.ledger summary > /tmp/gh-aw/agent/ledger.txt
       python -m scripts.baseline_json > /tmp/gh-aw/agent/baseline.json
 safe-outputs:
   create-pull-request:
@@ -294,6 +295,12 @@ champion's scores, any pending or finished GPU jobs, today's budget use, and the
 exact open-weight reasoner model selected for this run on the `## reasoner model:`
 line. Copy that value verbatim into every ledger entry you append as
 `reasoner_model`, and into every PR body under `Reasoner model:`. Never guess it.
+
+`/tmp/gh-aw/agent/ledger.txt` is the bounded ledger view prepared before the run.
+It lists every concern already recorded and the newest entries. Read that file
+instead of the raw `experiments/ledger.jsonl`: the raw file has exceeded the
+gateway request limit. Use it with the last 10 closed PRs from this workflow for
+the no-repeat check.
 
 - If `make check` is **red**, that's your concern for this run: fix the harness or
   code, and touch no training settings. Re-run with `-count`-style repeats
