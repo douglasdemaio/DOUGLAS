@@ -6,7 +6,13 @@ intent: >-
   suite without ever regressing, with every promotion backed by a signed,
   verifiable receipt.
 on:
-  schedule: daily on weekdays
+  schedule:
+    - cron: weekly on monday
+    - cron: weekly on tuesday
+    - cron: weekly on wednesday
+    - cron: weekly on thursday
+    - cron: weekly on friday
+  workflow_dispatch:
   push:
     branches: [main]
   # Block on a deliberate marker issue only. gh-aw's own failure reports carry the
@@ -44,8 +50,16 @@ permissions:
   contents: read
   issues: read
   pull-requests: read
-engine: claude
-model: claude-haiku-4-5
+engine:
+  id: pi
+  # The hf/ prefix is a gh-aw custom-provider marker, not part of the model ID.
+  # The compiled workflow forwards the nested owner/name value to the router.
+  model: hf/${{ contains(github.event.schedule, ' * * 1') && 'openai/gpt-oss-120b' || contains(github.event.schedule, ' * * 2') && 'Qwen/Qwen3-Coder-30B-A3B-Instruct' || contains(github.event.schedule, ' * * 3') && 'deepseek-ai/DeepSeek-V3.2' || contains(github.event.schedule, ' * * 4') && 'openai/gpt-oss-120b' || contains(github.event.schedule, ' * * 5') && 'Qwen/Qwen3-Coder-30B-A3B-Instruct' || 'openai/gpt-oss-120b' }}
+  model-provider: openai
+  env:
+    OPENAI_BASE_URL: https://router.huggingface.co/v1
+    OPENAI_API_KEY: ${{ secrets.HF_TOKEN }}
+    CODEX_API_KEY: ${{ secrets.HF_TOKEN }}
 tools:
   bash: true
   github:
@@ -108,11 +122,13 @@ steps:
   - name: Record baseline
     env:
       HF_TOKEN: ${{ secrets.HF_TOKEN }}
+      REASONER_MODEL: ${{ contains(github.event.schedule, ' * * 1') && 'openai/gpt-oss-120b' || contains(github.event.schedule, ' * * 2') && 'Qwen/Qwen3-Coder-30B-A3B-Instruct' || contains(github.event.schedule, ' * * 3') && 'deepseek-ai/DeepSeek-V3.2' || contains(github.event.schedule, ' * * 4') && 'openai/gpt-oss-120b' || contains(github.event.schedule, ' * * 5') && 'Qwen/Qwen3-Coder-30B-A3B-Instruct' || 'openai/gpt-oss-120b' }}
     run: |
       set -uo pipefail
       mkdir -p /tmp/gh-aw/agent
       {
         echo "## run id: ${GITHUB_RUN_ID}"
+        echo "## reasoner model: ${REASONER_MODEL}"
         echo "## make check"; make check 2>&1 | tail -40; echo "check_exit=${PIPESTATUS[0]}"
         for m in doug-a doug-l; do
           echo "## champion scores: $m"; cat "registry/$m.champion.scores.json" 2>/dev/null || echo "none yet"
@@ -148,6 +164,7 @@ safe-outputs:
       output: "Training job submitted; the pull-request branch records the job id in experiments/ledger.jsonl."
       env:
         HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        REASONER_MODEL: ${{ contains(github.event.schedule, ' * * 1') && 'openai/gpt-oss-120b' || contains(github.event.schedule, ' * * 2') && 'Qwen/Qwen3-Coder-30B-A3B-Instruct' || contains(github.event.schedule, ' * * 3') && 'deepseek-ai/DeepSeek-V3.2' || contains(github.event.schedule, ' * * 4') && 'openai/gpt-oss-120b' || contains(github.event.schedule, ' * * 5') && 'Qwen/Qwen3-Coder-30B-A3B-Instruct' || 'openai/gpt-oss-120b' }}
       inputs:
         model:
           description: "Model to train"
@@ -202,7 +219,8 @@ safe-outputs:
             git checkout --detach FETCH_HEAD
             python -m scripts.submit_job \
               --model "$model" --stage "$stage" \
-              --hypothesis "$hypothesis" --concern "$concern"
+              --hypothesis "$hypothesis" --concern "$concern" \
+              --reasoner-model "$REASONER_MODEL"
             if git diff --quiet -- experiments/ledger.jsonl; then
               echo "no ledger change to push"
               exit 0
@@ -213,6 +231,17 @@ safe-outputs:
             git commit -m "chore(ledger): record $model $stage job submission"
             git push origin "HEAD:refs/heads/$branch"
   threat-detection:
+    engine:
+      id: codex
+      model-provider: openai
+      # openai/ here is a gh-aw provider marker; detection receives the same
+      # fully qualified owner/name model ID as the reasoner.
+      model: openai/${{ contains(github.event.schedule, ' * * 1') && 'openai/gpt-oss-120b' || contains(github.event.schedule, ' * * 2') && 'Qwen/Qwen3-Coder-30B-A3B-Instruct' || contains(github.event.schedule, ' * * 3') && 'deepseek-ai/DeepSeek-V3.2' || contains(github.event.schedule, ' * * 4') && 'openai/gpt-oss-120b' || contains(github.event.schedule, ' * * 5') && 'Qwen/Qwen3-Coder-30B-A3B-Instruct' || 'openai/gpt-oss-120b' }}
+      api-target: router.huggingface.co
+      env:
+        OPENAI_BASE_URL: https://router.huggingface.co/v1
+        OPENAI_API_KEY: ${{ secrets.HF_TOKEN }}
+        CODEX_API_KEY: ${{ secrets.HF_TOKEN }}
     continue-on-error: false
     retries: 2
 concurrency:
@@ -256,7 +285,10 @@ Read `AGENTS.md` first. Its hard constraints are binding.
 ## Baseline (read this first)
 
 `/tmp/gh-aw/agent/baseline.txt` and `baseline.json` hold the `make check` result, each
-champion's scores, any pending or finished GPU jobs, and today's budget use.
+champion's scores, any pending or finished GPU jobs, today's budget use, and the
+exact open-weight reasoner model selected for this run on the `## reasoner model:`
+line. Copy that value verbatim into every ledger entry you append as
+`reasoner_model`, and into every PR body under `Reasoner model:`. Never guess it.
 
 - If `make check` is **red**, that's your concern for this run: fix the harness or
   code, and touch no training settings. Re-run with `-count`-style repeats
@@ -295,7 +327,7 @@ You **do not have `HF_TOKEN`** and must never try to read, print or set it. Runn
 the budget check and the ledger commit.
 
 1. Append a `kind: plan` entry to `experiments/ledger.jsonl` with `model`,
-   `concern`, `hypothesis`, `commit` (if known) and `ts`. This is the run's
+   `concern`, `hypothesis`, `reasoner_model`, `commit` (if known) and `ts`. This is the run's
    bookkeeping record and guarantees the branch is non-empty even on the
    first, baseline run where no recipe change is justified.
 2. Commit that entry plus the single-concern change (if any) on a new branch
@@ -317,7 +349,8 @@ retry with a different flavor or a smaller eval.
 
 ## Output
 
-One PR titled `douglas-improvement: <model> — <concern>`, whose body contains the hypothesis, the diff
+One PR titled `douglas-improvement: <model> — <concern>`, whose body contains a
+`Reasoner model:` line copied from the baseline, the hypothesis, the diff
 summary, the score table (champion vs challenger, mean ± std, ≥3 seeds), the
 contamination result, and the ledger entry. If nothing is worth proposing, write a
 short summary of what you checked, with no PR.
