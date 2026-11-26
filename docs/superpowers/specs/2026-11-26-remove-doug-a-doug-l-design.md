@@ -29,7 +29,7 @@ research/eval only.
 
 - `models/`, `data/`, `registry/`, `results/`, `schemas/`, `experiments/`
 - `evals/doug-a/`, `evals/doug-l/`
-- `baseline.json`
+- `baseline.json`, `requirements.train.lock`
 - `docs/reports/`, `docs/reviews/`, `docs/specs/` old model-track documents
 - `scripts/` except a rewritten generic `common.py` and `__init__.py`
 - all `tests/` except `conftest.py` and `test_h3do_eval.py`
