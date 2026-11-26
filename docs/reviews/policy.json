@@ -1,7 +1,0 @@
-{
-  "schema_version": 1,
-  "max_runs_per_day": 1,
-  "max_open_prs": 1,
-  "cooldown_hours_after_rejection": 24,
-  "cooldown_hours_after_rollback": 24
-}

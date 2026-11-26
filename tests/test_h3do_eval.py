@@ -8,7 +8,7 @@ import json
 import pytest
 
 from evals.h3do.tools import baseline, quality_metrics, report, speed_metrics
-from scripts.common import ROOT, load_json, read_jsonl
+from scripts.common import ROOT, load_json, load_yaml, read_jsonl
 
 RESEARCH = ROOT / "evals" / "h3do" / "research"
 MANIFEST = RESEARCH / "eval_manifest.json"
@@ -29,6 +29,17 @@ def test_manifest_and_fixture_are_consistent() -> None:
     index = baseline.load_predictions(PREDICTIONS)
     assert set(index) == {(item["id"], seed) for item in manifest["items"] for seed in seeds}
     assert all(record["frames"] for record in predictions)
+
+
+def test_config_pins_pika_h3_flex() -> None:
+    config = load_yaml(baseline.DEFAULT_CONFIG)
+    assert config["model"] == "pika-h3-flex"
+    assert config["base"]["repo"] == "Pika-Labs/Pika-H3-Flex"
+    assert config["base"]["revision"] == "ca45d99f9b1d1859ffb9dc1cd6bfaaa994257f56"
+    assert config["base"]["upstream"]["repo"] == "MiniMaxAI/MiniMax-H3"
+    assert config["base"]["adapters"]["fl2va"] == "fl2va/adapter.safetensors"
+    assert config["base"]["adapters"]["ref2va"] == "ref2va/adapter.safetensors"
+    assert config["budget"]["training_gpu_hours"] == 0
 
 
 def test_quality_metrics_penalize_bad_traces() -> None:
@@ -93,6 +104,8 @@ def test_baseline_cli_writes_scores_offline(tmp_path) -> None:
 
     scores = json.loads((out_dir / "scores.json").read_text(encoding="utf-8"))
     assert scores["track"] == "h3do"
+    assert scores["model"] == "pika-h3-flex"
+    assert scores["config_base_revision"] == "ca45d99f9b1d1859ffb9dc1cd6bfaaa994257f56"
     assert scores["engine"] == "replay"
     assert scores["seeds"] == [1, 2, 3]
     assert scores["failure_count"] == 0

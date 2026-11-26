@@ -1,1 +1,1 @@
-"""H3-DO research evaluations; not a DOUG-A or DOUG-L frozen suite."""
+"""H3-DO research/eval harness for the pinned Pika H3 Flex target."""

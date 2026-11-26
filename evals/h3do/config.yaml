@@ -1,10 +1,17 @@
 track: h3do
 schema_version: 1
+model: pika-h3-flex
 base:
-  repo: MiniMaxAI/MiniMax-H3
-  revision: 12253298adb81e36757eabebb81d2ba1c0cc70cc
+  repo: Pika-Labs/Pika-H3-Flex
+  revision: ca45d99f9b1d1859ffb9dc1cd6bfaaa994257f56
   variant: FL2VA
   license: minimax-h3-community-license-agreement
+  upstream:
+    repo: MiniMaxAI/MiniMax-H3
+    revision: 12253298adb81e36757eabebb81d2ba1c0cc70cc
+  adapters:
+    fl2va: fl2va/adapter.safetensors
+    ref2va: ref2va/adapter.safetensors
   hosted_modules_excluded:
     - H3-Context-IR
     - H3-Regenerate-2K
