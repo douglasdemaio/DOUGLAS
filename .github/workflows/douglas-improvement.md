@@ -233,17 +233,12 @@ safe-outputs:
             git commit -m "chore(ledger): record $model $stage job submission"
             git push origin "HEAD:refs/heads/$branch"
   threat-detection:
+    # Codex on the HF router sent a >100 KB /responses body and got HTTP 413,
+    # leaving no verdict. Copilot's gateway accepts the full agent output.
+    # Use a GPT model only: no Anthropic secret or model in this path.
     engine:
-      id: codex
-      model-provider: openai
-      # openai/ here is a gh-aw provider marker; detection receives the same
-      # fully qualified owner/name model ID as the reasoner.
-      model: openai/${{ contains(github.event.schedule, ' * * 1') && 'meta-llama/Llama-3.3-70B-Instruct' || contains(github.event.schedule, ' * * 2') && 'Qwen/Qwen3-Coder-30B-A3B-Instruct' || contains(github.event.schedule, ' * * 3') && 'deepseek-ai/DeepSeek-V3.2' || contains(github.event.schedule, ' * * 4') && 'meta-llama/Llama-3.3-70B-Instruct' || contains(github.event.schedule, ' * * 5') && 'Qwen/Qwen3-Coder-30B-A3B-Instruct' || 'meta-llama/Llama-3.3-70B-Instruct' }}
-      api-target: router.huggingface.co
-      env:
-        OPENAI_BASE_URL: https://router.huggingface.co/v1
-        OPENAI_API_KEY: ${{ secrets.HF_TOKEN }}
-        CODEX_API_KEY: ${{ secrets.HF_TOKEN }}
+      id: copilot
+      model: copilot/gpt-5.4
     continue-on-error: false
     retries: 2
 concurrency:
