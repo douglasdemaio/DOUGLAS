@@ -31,13 +31,20 @@ def test_manifest_and_fixture_are_consistent() -> None:
     assert all(record["frames"] for record in predictions)
 
 
-def test_config_pins_pika_h3_flex() -> None:
+def test_config_and_manifest_pin_pika_h3_flex() -> None:
     config = load_yaml(baseline.DEFAULT_CONFIG)
-    assert config["model"] == "pika-h3-flex"
-    assert config["base"]["repo"] == "Pika-Labs/Pika-H3-Flex"
-    assert config["base"]["revision"] == "ca45d99f9b1d1859ffb9dc1cd6bfaaa994257f56"
-    assert config["base"]["upstream"]["repo"] == "MiniMaxAI/MiniMax-H3"
-    assert config["base"]["adapters"]["fl2va"] == "fl2va/adapter.safetensors"
+    manifest = load_json(MANIFEST)
+
+    assert config["model"] == manifest["model"] == "pika-h3-flex"
+    assert config["base"]["repo"] == manifest["adapter_repo"] == "Pika-Labs/Pika-H3-Flex"
+    assert (
+        config["base"]["revision"]
+        == manifest["adapter_revision"]
+        == "ca45d99f9b1d1859ffb9dc1cd6bfaaa994257f56"
+    )
+    assert config["base"]["adapters"]["fl2va"] == manifest["adapter_path"]
+    assert config["base"]["upstream"]["repo"] == manifest["upstream_base_repo"]
+    assert config["base"]["upstream"]["revision"] == manifest["upstream_base_revision"]
     assert config["base"]["adapters"]["ref2va"] == "ref2va/adapter.safetensors"
     assert config["budget"]["training_gpu_hours"] == 0
 
