@@ -6,7 +6,11 @@
 
 The replay engine is offline and uses the committed numeric fixture. The
 optional endpoint engine posts only manifest metadata and a seed; the response
-must follow the prediction contract documented in evals/h3do/README.md.
+must follow the prediction contract documented in evals/h3do/README.md. Use
+`--require-token` for the backend-secret path; the token is read from
+`H3DO_ENDPOINT_TOKEN` or `HF_TOKEN`, is never printed, and is not stored in the
+run directory. Endpoints that report `capability.backend_configured: false`
+fail closed instead of writing a misleading zero-score run.
 """
 
 from __future__ import annotations
@@ -20,6 +24,7 @@ from collections import defaultdict
 from collections.abc import Callable, Mapping
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlsplit
 
 from scripts.common import (
     ROOT,
@@ -98,9 +103,33 @@ def replay_engine(index: dict[tuple[str, int], dict]) -> Callable[[dict, int], d
     return predict
 
 
+def endpoint_target(url: str) -> str:
+    """Return a log-safe https endpoint URL, rejecting embedded credentials."""
+    parsed = urlsplit(url)
+    if parsed.scheme != "https" or not parsed.hostname:
+        raise ValueError("endpoint URL must be an absolute https URL")
+    if parsed.username or parsed.password or parsed.query or parsed.fragment:
+        raise ValueError("endpoint URL must not contain credentials, query, or fragment")
+    return f"{parsed.scheme}://{parsed.netloc}{parsed.path or '/'}"
+
+
+def endpoint_token() -> tuple[str | None, str | None]:
+    """Read the endpoint token without ever returning it to logs or results."""
+    for name in ("H3DO_ENDPOINT_TOKEN", "HF_TOKEN"):
+        value = os.environ.get(name)
+        if value and value.strip():
+            return value.strip(), name
+    return None, None
+
+
 def endpoint_engine(
-    url: str, manifest: Mapping[str, Any], timeout: int
+    url: str,
+    manifest: Mapping[str, Any],
+    timeout: int,
+    token: str | None = None,
 ) -> Callable[[dict, int], dict]:
+    target = endpoint_target(url)
+
     def predict(item: dict, seed: int) -> dict:
         body = {
             "id": item["id"],
@@ -111,11 +140,10 @@ def endpoint_engine(
             "resolution": manifest.get("resolution"),
         }
         headers = {"Content-Type": "application/json"}
-        token = os.environ.get("H3DO_ENDPOINT_TOKEN") or os.environ.get("HF_TOKEN")
         if token:
             headers["Authorization"] = f"Bearer {token}"
         request = urllib.request.Request(
-            url,
+            target,
             data=canonical_json(body),
             headers=headers,
             method="POST",
@@ -124,6 +152,10 @@ def endpoint_engine(
             payload = json.loads(response.read().decode("utf-8"))
         if not isinstance(payload, dict):
             raise ValueError(f"endpoint returned non-object prediction for {item['id']}")
+        capability = payload.get("capability")
+        if isinstance(capability, Mapping) and capability.get("backend_configured") is False:
+            reason = capability.get("reason") or "endpoint backend is not configured"
+            raise ValueError(f"endpoint backend not configured for {item['id']}: {reason}")
         return payload
 
     return predict
@@ -154,6 +186,11 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--seeds", type=int, default=3)
     parser.add_argument("--engine", choices=["replay", "endpoint"], default="replay")
     parser.add_argument("--endpoint-url")
+    parser.add_argument(
+        "--require-token",
+        action="store_true",
+        help="fail closed when no H3DO_ENDPOINT_TOKEN or HF_TOKEN is set",
+    )
     parser.add_argument("--timeout", type=int, default=180)
     parser.add_argument("--out")
     parser.add_argument("--run")
@@ -174,16 +211,33 @@ def main(argv: list[str] | None = None) -> int:
                 print(f"manifest: {problem}", file=sys.stderr)
             return 2
 
-        if args.engine == "endpoint" and not args.endpoint_url:
-            print("--endpoint-url is required for the endpoint engine", file=sys.stderr)
-            return 2
+        endpoint_info: dict[str, Any] | None = None
+        token: str | None = None
+        auth_source: str | None = None
+        if args.engine == "endpoint":
+            if not args.endpoint_url:
+                print("--endpoint-url is required for the endpoint engine", file=sys.stderr)
+                return 2
+            target = endpoint_target(args.endpoint_url)
+            token, auth_source = endpoint_token()
+            if args.require_token and not token:
+                print(
+                    "--require-token needs H3DO_ENDPOINT_TOKEN or HF_TOKEN",
+                    file=sys.stderr,
+                )
+                return 2
+            endpoint_info = {
+                "url": target,
+                "auth_source": auth_source,
+                "require_token": args.require_token,
+            }
 
         items = manifest["items"]
         if args.engine == "replay":
             predict = replay_engine(load_predictions(predictions_path))
             predictions_hash = sha256_file(predictions_path)
         else:
-            predict = endpoint_engine(args.endpoint_url, manifest, args.timeout)
+            predict = endpoint_engine(target, manifest, args.timeout, token)
             predictions_hash = "endpoint"
 
         per_seed: list[dict[str, list[float]]] = []
@@ -230,6 +284,8 @@ def main(argv: list[str] | None = None) -> int:
             "config_base_revision": config["base"]["revision"],
             "failure_count": len(failures),
         }
+        if endpoint_info is not None:
+            scores["endpoint"] = endpoint_info
 
         out_dir.mkdir(parents=True, exist_ok=True)
         write_json(out_dir / "scores.json", scores)

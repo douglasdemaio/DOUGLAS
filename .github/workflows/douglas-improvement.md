@@ -57,8 +57,14 @@ engine:
   # The compiled workflow forwards the nested owner/name value to the router.
   # Do not use HF IDs namespaced under openai/: AWF strips that prefix on the
   # openai provider before the request reaches the router.
-  model: hf/${{ contains(github.event.schedule, ' * * 1') && 'meta-llama/Llama-3.3-70B-Instruct' || contains(github.event.schedule, ' * * 2') && 'Qwen/Qwen3-Coder-30B-A3B-Instruct' || contains(github.event.schedule, ' * * 3') && 'deepseek-ai/DeepSeek-V3.2' || contains(github.event.schedule, ' * * 4') && 'meta-llama/Llama-3.3-70B-Instruct' || contains(github.event.schedule, ' * * 5') && 'Qwen/Qwen3-Coder-30B-A3B-Instruct' || 'meta-llama/Llama-3.3-70B-Instruct' }}
+  model: hf/${{ contains(github.event.schedule, ' * * 1') && 'Qwen/Qwen3-Coder-480B-A35B-Instruct' || contains(github.event.schedule, ' * * 2') && 'Qwen/Qwen3-Coder-30B-A3B-Instruct' || contains(github.event.schedule, ' * * 3') && 'deepseek-ai/DeepSeek-V3.2' || contains(github.event.schedule, ' * * 4') && 'Qwen/Qwen3-Coder-480B-A35B-Instruct' || contains(github.event.schedule, ' * * 5') && 'Qwen/Qwen3-Coder-30B-A3B-Instruct' || 'Qwen/Qwen3-Coder-480B-A35B-Instruct' }}
   model-provider: openai
+  # The openai provider defaults Pi to the /responses wire API. HF router's
+  # /responses endpoint always reports cached_tokens=0, so the AWF gateway
+  # counts every turn as a cache miss and stops the run after five turns.
+  # /chat/completions reports real cache hits on the same open-weight models.
+  config: |
+    {"model": {"api": "openai-completions"}}
   env:
     OPENAI_BASE_URL: https://router.huggingface.co/v1
     OPENAI_API_KEY: ${{ secrets.HF_TOKEN }}
@@ -125,7 +131,7 @@ steps:
   - name: Record baseline
     env:
       HF_TOKEN: ${{ secrets.HF_TOKEN }}
-      REASONER_MODEL: ${{ contains(github.event.schedule, ' * * 1') && 'meta-llama/Llama-3.3-70B-Instruct' || contains(github.event.schedule, ' * * 2') && 'Qwen/Qwen3-Coder-30B-A3B-Instruct' || contains(github.event.schedule, ' * * 3') && 'deepseek-ai/DeepSeek-V3.2' || contains(github.event.schedule, ' * * 4') && 'meta-llama/Llama-3.3-70B-Instruct' || contains(github.event.schedule, ' * * 5') && 'Qwen/Qwen3-Coder-30B-A3B-Instruct' || 'meta-llama/Llama-3.3-70B-Instruct' }}
+      REASONER_MODEL: ${{ contains(github.event.schedule, ' * * 1') && 'Qwen/Qwen3-Coder-480B-A35B-Instruct' || contains(github.event.schedule, ' * * 2') && 'Qwen/Qwen3-Coder-30B-A3B-Instruct' || contains(github.event.schedule, ' * * 3') && 'deepseek-ai/DeepSeek-V3.2' || contains(github.event.schedule, ' * * 4') && 'Qwen/Qwen3-Coder-480B-A35B-Instruct' || contains(github.event.schedule, ' * * 5') && 'Qwen/Qwen3-Coder-30B-A3B-Instruct' || 'Qwen/Qwen3-Coder-480B-A35B-Instruct' }}
     run: |
       set -uo pipefail
       mkdir -p /tmp/gh-aw/agent
@@ -168,7 +174,7 @@ safe-outputs:
       output: "Training job submitted; the pull-request branch records the job id in experiments/ledger.jsonl."
       env:
         HF_TOKEN: ${{ secrets.HF_TOKEN }}
-        REASONER_MODEL: ${{ contains(github.event.schedule, ' * * 1') && 'meta-llama/Llama-3.3-70B-Instruct' || contains(github.event.schedule, ' * * 2') && 'Qwen/Qwen3-Coder-30B-A3B-Instruct' || contains(github.event.schedule, ' * * 3') && 'deepseek-ai/DeepSeek-V3.2' || contains(github.event.schedule, ' * * 4') && 'meta-llama/Llama-3.3-70B-Instruct' || contains(github.event.schedule, ' * * 5') && 'Qwen/Qwen3-Coder-30B-A3B-Instruct' || 'meta-llama/Llama-3.3-70B-Instruct' }}
+        REASONER_MODEL: ${{ contains(github.event.schedule, ' * * 1') && 'Qwen/Qwen3-Coder-480B-A35B-Instruct' || contains(github.event.schedule, ' * * 2') && 'Qwen/Qwen3-Coder-30B-A3B-Instruct' || contains(github.event.schedule, ' * * 3') && 'deepseek-ai/DeepSeek-V3.2' || contains(github.event.schedule, ' * * 4') && 'Qwen/Qwen3-Coder-480B-A35B-Instruct' || contains(github.event.schedule, ' * * 5') && 'Qwen/Qwen3-Coder-30B-A3B-Instruct' || 'Qwen/Qwen3-Coder-480B-A35B-Instruct' }}
       inputs:
         model:
           description: "Model to train"
