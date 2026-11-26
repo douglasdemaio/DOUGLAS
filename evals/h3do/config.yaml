@@ -1,0 +1,22 @@
+track: h3do
+schema_version: 1
+base:
+  repo: MiniMaxAI/MiniMax-H3
+  revision: 12253298adb81e36757eabebb81d2ba1c0cc70cc
+  variant: FL2VA
+  license: minimax-h3-community-license-agreement
+  hosted_modules_excluded:
+    - H3-Context-IR
+    - H3-Regenerate-2K
+benchmark:
+  profile: research-short-4s
+  duration_seconds: 4
+  resolution:
+    width: 768
+    height: 432
+  min_seeds: 3
+  artifact_tolerance: 0.05
+  audio_sync_tolerance_seconds: 0.25
+budget:
+  training_gpu_hours: 0
+  note: research/eval only; no training job in this change
