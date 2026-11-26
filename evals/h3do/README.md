@@ -72,15 +72,30 @@ run uses the committed numeric fixture; it does not call a model endpoint.
 
 ## Endpoint adapter
 
-For a later Space smoke test, the same CLI can call a generic endpoint that
-accepts the manifest item plus a seed and returns the prediction contract:
+The same CLI can call an endpoint that accepts the manifest item plus a seed
+and returns the prediction contract. Use `--require-token` for the real
+backend-secret path:
+
+```bash
+H3DO_ENDPOINT_URL="https://example.hf.space/predict" \
+make h3do-endpoint-eval SEEDS=3
+```
+
+or directly:
 
 ```bash
 .venv/bin/python -m evals.h3do.tools.baseline \
   --engine endpoint \
   --endpoint-url "https://example.hf.space/predict" \
+  --require-token \
   --seeds 3
 ```
 
-The optional token is read from `H3DO_ENDPOINT_TOKEN` or `HF_TOKEN` and is never
-printed or stored in the run directory. No endpoint call is made in tests.
+The token is read from `H3DO_ENDPOINT_TOKEN` or `HF_TOKEN`. With
+`--require-token`, a missing token fails before any request is sent. The token
+is never printed or stored in the run directory; `scores.json` records only the
+environment variable name and a credential-free endpoint URL. Endpoint URLs
+must be absolute `https` URLs without embedded credentials, query strings, or
+fragments. If the endpoint reports `capability.backend_configured: false`, the
+run fails closed before writing scores so a stub response cannot be mistaken for
+model performance. No endpoint call is made in tests.

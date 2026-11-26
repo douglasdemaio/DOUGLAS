@@ -103,3 +103,147 @@ def test_baseline_cli_writes_scores_offline(tmp_path) -> None:
 
 def test_baseline_requires_at_least_three_seeds(tmp_path) -> None:
     assert baseline.main(["--seeds", "2", "--out", str(tmp_path / "short")]) == 2
+
+
+def test_endpoint_target_is_log_safe_and_https_only() -> None:
+    assert (
+        baseline.endpoint_target("https://example.hf.space/predict")
+        == "https://example.hf.space/predict"
+    )
+    unsafe = (
+        "http://example.hf.space/predict",
+        "https://user:pass@example.hf.space/predict",
+        "https://example.hf.space/predict?token=secret",
+        "https://example.hf.space/predict#fragment",
+    )
+    for url in unsafe:
+        with pytest.raises(ValueError):
+            baseline.endpoint_target(url)
+
+
+def test_endpoint_require_token_fails_before_request(monkeypatch, tmp_path, capsys) -> None:
+    monkeypatch.delenv("H3DO_ENDPOINT_TOKEN", raising=False)
+    monkeypatch.delenv("HF_TOKEN", raising=False)
+    calls: list[object] = []
+    monkeypatch.setattr(
+        baseline.urllib.request,
+        "urlopen",
+        lambda *args, **kwargs: calls.append((args, kwargs)),
+    )
+
+    code = baseline.main(
+        [
+            "--engine",
+            "endpoint",
+            "--endpoint-url",
+            "https://example.hf.space/predict",
+            "--require-token",
+            "--out",
+            str(tmp_path / "run"),
+        ]
+    )
+
+    assert code == 2
+    assert calls == []
+    assert "H3DO_ENDPOINT_TOKEN" in capsys.readouterr().err
+
+
+def test_endpoint_sends_token_without_storing_it(monkeypatch, tmp_path) -> None:
+    secret = "h3do-secret-sentinel"
+    monkeypatch.setenv("H3DO_ENDPOINT_TOKEN", secret)
+    monkeypatch.delenv("HF_TOKEN", raising=False)
+    captured: dict[str, object] = {}
+    template = fixture_predictions()[0]
+
+    class Response:
+        def __enter__(self) -> Response:
+            return self
+
+        def __exit__(self, *exc_info: object) -> bool:
+            return False
+
+        def read(self) -> bytes:
+            return json.dumps(captured["prediction"]).encode("utf-8")
+
+    def fake_urlopen(request: object, timeout: int) -> Response:
+        body = json.loads(request.data.decode("utf-8"))  # type: ignore[attr-defined]
+        captured["url"] = request.full_url  # type: ignore[attr-defined]
+        captured["authorization"] = request.get_header("Authorization")  # type: ignore[attr-defined]
+        prediction = copy.deepcopy(template)
+        prediction["id"] = body["id"]
+        prediction["seed"] = body["seed"]
+        captured["prediction"] = prediction
+        return Response()
+
+    monkeypatch.setattr(baseline.urllib.request, "urlopen", fake_urlopen)
+    out_dir = tmp_path / "run"
+
+    assert (
+        baseline.main(
+            [
+                "--engine",
+                "endpoint",
+                "--endpoint-url",
+                "https://example.hf.space/predict",
+                "--require-token",
+                "--out",
+                str(out_dir),
+            ]
+        )
+        == 0
+    )
+    assert captured["url"] == "https://example.hf.space/predict"
+    assert captured["authorization"] == f"Bearer {secret}"
+
+    scores = json.loads((out_dir / "scores.json").read_text(encoding="utf-8"))
+    assert scores["endpoint"] == {
+        "url": "https://example.hf.space/predict",
+        "auth_source": "H3DO_ENDPOINT_TOKEN",
+        "require_token": True,
+    }
+    assert secret not in (out_dir / "scores.json").read_text(encoding="utf-8")
+    assert secret not in (out_dir / "report.md").read_text(encoding="utf-8")
+
+
+def test_endpoint_rejects_unconfigured_backend(monkeypatch, tmp_path, capsys) -> None:
+    monkeypatch.setenv("H3DO_ENDPOINT_TOKEN", "h3do-secret-sentinel")
+    monkeypatch.delenv("HF_TOKEN", raising=False)
+    template = fixture_predictions()[0]
+    template["capability"] = {
+        "backend_configured": False,
+        "reason": "backend URL is not configured",
+    }
+
+    class Response:
+        def __enter__(self) -> Response:
+            return self
+
+        def __exit__(self, *exc_info: object) -> bool:
+            return False
+
+        def read(self) -> bytes:
+            return json.dumps(template).encode("utf-8")
+
+    monkeypatch.setattr(
+        baseline.urllib.request,
+        "urlopen",
+        lambda *args, **kwargs: Response(),
+    )
+    out_dir = tmp_path / "run"
+
+    assert (
+        baseline.main(
+            [
+                "--engine",
+                "endpoint",
+                "--endpoint-url",
+                "https://example.hf.space/predict",
+                "--require-token",
+                "--out",
+                str(out_dir),
+            ]
+        )
+        == 2
+    )
+    assert "backend not configured" in capsys.readouterr().err
+    assert not out_dir.exists()
