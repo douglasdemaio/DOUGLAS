@@ -72,7 +72,9 @@ research/eval only.
 
 ## Verification
 
-1. `git grep -n -E 'doug-a|doug-l|DOUG-A|DOUG-L'` returns no tracked references.
+1. `git grep -n -E 'doug-a|doug-l|DOUG-A|DOUG-L'` returns no active code,
+   config, workflow, or README references; only the dated design spec may name
+   the retired tracks.
 2. `make check` passes.
 3. `make h3do-eval` completes offline, writes `scores.json` and `report.md`, and
    records `model: pika-h3-flex` plus the pinned Pika revision.

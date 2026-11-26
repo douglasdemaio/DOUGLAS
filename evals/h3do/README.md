@@ -1,30 +1,29 @@
 # H3-DO research/eval harness
 
-This directory is the offline research harness for the proposed H3-DO track:
-**MiniMax H3 — Daily Optimized**. It is separate from DOUG-A and DOUG-L and
-does not change their champions, frozen sets, recipes, gates, or budgets.
+This directory is the offline research harness for H3-DO. Its active target is
+the pinned open-weight `Pika-Labs/Pika-H3-Flex` adapter pair on top of MiniMax
+H3. Pika H3 Flex is a post-trained H3 model, not a standalone checkpoint.
 
-The harness lives under `evals/h3do/` because the repository's `scope`/`protect`
-backstops already treat `evals/` as infrastructure and keep `evals/*/frozen/`
-read-only. Nothing here is frozen and nothing here is a DOUG-A/L eval.
+This harness is research/eval only. It does not download weights, submit
+training, promote a model, or sign receipts. It never calls a hosted endpoint
+during tests.
 
 ## Scope
 
-- Baseline measurement only. No training job is submitted from this change.
-- No hosted MiniMax APIs are called. The open H3-Base checkpoint is the thing
-  being studied; hosted H3-Context-IR and H3-Regenerate-2K are out of scope.
-- No new dependencies. The harness uses the pinned Python environment and the
-  standard library.
+- Baseline measurement using the committed numeric fixture.
+- No training job, hosted generation call, or promotion path.
+- No new dependencies; the pinned Python environment is used.
 - No model weights, generated videos, customer data, or secrets are committed.
 
 ## Files
 
-- `config.yaml` — pinned base repository/revision and research profile.
+- `config.yaml` — pinned Pika H3 Flex revision, adapter paths, upstream MiniMax
+  H3 base, and research profile.
 - `research/eval_manifest.json` — item IDs, prompts, seeds, duration, and
-  tolerance settings for this track.
+  tolerance settings.
 - `research/prompts.jsonl` — authored text prompts.
-- `research/synthetic_predictions.jsonl` — small numeric fixture used by tests
-  and the offline smoke command. It contains no generated media.
+- `research/synthetic_predictions.jsonl` — numeric fixture used by tests and
+  the offline smoke command. It contains no generated media.
 - `tools/baseline.py` — CLI that scores predictions and writes a run.
 - `tools/quality_metrics.py` — deterministic visual-quality scoring.
 - `tools/speed_metrics.py` — latency, GPU time, VRAM, and throughput scoring.
@@ -49,14 +48,13 @@ One JSON object per line:
 ```
 
 `frames` is a compact feature trace, not video bytes. `alignment` is a
-precomputed prompt/frame similarity in `[0, 1]`; a future change may compute it
-from real sampled frames with an already-pinned dependency. The harness never
-executes, fetches, or decodes anything from a prediction record.
+precomputed prompt/frame similarity in `[0, 1]`. The harness never executes,
+fetches, or decodes anything from a prediction record.
 
 ## Offline smoke command
 
 ```bash
-PYTHON=.venv/bin/python make h3do-eval
+make h3do-eval SEEDS=3
 ```
 
 or directly:
@@ -69,26 +67,17 @@ or directly:
 
 This writes `scores.json` and `report.md` under the output directory. The smoke
 run uses the committed numeric fixture; it does not call a model endpoint.
+`scores.json` records `model: pika-h3-flex` and the pinned Pika revision.
 
 ## Endpoint adapter
 
-The same CLI can call an endpoint that accepts the manifest item plus a seed
-and returns the prediction contract. Use `--require-token` for the real
-backend-secret path:
+The same CLI can call a configured endpoint that accepts a manifest item plus a
+seed and returns the prediction contract. This is opt-in and is not used in
+tests:
 
 ```bash
 H3DO_ENDPOINT_URL="https://example.hf.space/predict" \
 make h3do-endpoint-eval SEEDS=3
-```
-
-or directly:
-
-```bash
-.venv/bin/python -m evals.h3do.tools.baseline \
-  --engine endpoint \
-  --endpoint-url "https://example.hf.space/predict" \
-  --require-token \
-  --seeds 3
 ```
 
 The token is read from `H3DO_ENDPOINT_TOKEN` or `HF_TOKEN`. With
@@ -98,4 +87,4 @@ environment variable name and a credential-free endpoint URL. Endpoint URLs
 must be absolute `https` URLs without embedded credentials, query strings, or
 fragments. If the endpoint reports `capability.backend_configured: false`, the
 run fails closed before writing scores so a stub response cannot be mistaken for
-model performance. No endpoint call is made in tests.
+model performance.

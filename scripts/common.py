@@ -1,4 +1,4 @@
-"""Shared helpers for the DOUGLAS loop.
+"""Generic helpers shared by the H3-DO research/eval harness.
 
 Everything here is CPU-only and standard-library except for PyYAML.
 """
@@ -17,42 +17,6 @@ from typing import Any
 import yaml
 
 ROOT = Path(__file__).resolve().parent.parent
-MODELS = ("doug-a", "doug-l")
-
-
-# --------------------------------------------------------------------------- #
-# paths
-# --------------------------------------------------------------------------- #
-def model_dir(model: str) -> Path:
-    _check_model(model)
-    return ROOT / "models" / model
-
-
-def data_dir(model: str) -> Path:
-    _check_model(model)
-    return ROOT / "data" / model
-
-
-def eval_dir(model: str) -> Path:
-    _check_model(model)
-    return ROOT / "evals" / model
-
-
-def frozen_dir(model: str) -> Path:
-    return eval_dir(model) / "frozen"
-
-
-def registry_dir() -> Path:
-    return ROOT / "registry"
-
-
-def ledger_path() -> Path:
-    return ROOT / "experiments" / "ledger.jsonl"
-
-
-def _check_model(model: str) -> None:
-    if model not in MODELS:
-        raise ValueError(f"unknown model {model!r}; expected one of {MODELS}")
 
 
 # --------------------------------------------------------------------------- #
@@ -74,7 +38,7 @@ def parse_ts(value: str) -> datetime:
 # serialisation
 # --------------------------------------------------------------------------- #
 def canonical_json(obj: Any) -> bytes:
-    """Canonical JSON used for hashing and JWS payloads."""
+    """Canonical JSON used for stable hashing."""
     return json.dumps(obj, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode()
 
 
@@ -170,69 +134,3 @@ def tree_sha256(path: Path | str, ignore: Iterable[str] = ()) -> str:
         h.update(file.read_bytes())
         h.update(b"\0")
     return h.hexdigest()
-
-
-def frozen_sha256(model: str) -> str:
-    """Hash of the frozen eval set, excluding the manifest itself."""
-    return tree_sha256(frozen_dir(model), ignore={"manifest.json"})
-
-
-def verify_frozen_manifest(model: str) -> list[str]:
-    """Return a list of manifest/hash problems; empty means intact."""
-    frozen = frozen_dir(model)
-    manifest_path = frozen / "manifest.json"
-    if not manifest_path.exists():
-        return [f"{model}: frozen/manifest.json is missing"]
-    manifest = load_json(manifest_path)
-    problems = []
-    listed = manifest.get("files", {})
-    for rel, expected in listed.items():
-        path = frozen / rel
-        if not path.exists():
-            problems.append(f"{model}: frozen file missing: {rel}")
-        elif sha256_file(path) != expected:
-            problems.append(f"{model}: frozen file modified: {rel}")
-    for path in frozen.rglob("*"):
-        if path.is_file() and path.name != "manifest.json":
-            rel = path.relative_to(frozen).as_posix()
-            if rel not in listed:
-                problems.append(f"{model}: unlisted frozen file: {rel}")
-    return problems
-
-
-def recipe_sha256(model: str) -> str:
-    return sha256_file(model_dir(model) / "recipe.yaml")
-
-
-def config_path(model: str) -> Path:
-    return model_dir(model) / "config.yaml"
-
-
-def load_config(model: str) -> dict:
-    return load_yaml(config_path(model))
-
-
-def load_recipe(model: str) -> dict:
-    return load_yaml(model_dir(model) / "recipe.yaml")
-
-
-# --------------------------------------------------------------------------- #
-# ledger
-# --------------------------------------------------------------------------- #
-def append_ledger(record: dict) -> None:
-    record = {"ts": utc_now_iso(), **record}
-    append_jsonl(ledger_path(), record)
-
-
-def latest_jobs(model: str | None = None) -> dict[str, dict]:
-    """Latest state per job id, keyed by job id."""
-    jobs: dict[str, dict] = {}
-    for rec in read_jsonl(ledger_path()):
-        if rec.get("kind") != "job":
-            continue
-        if model and rec.get("model") != model:
-            continue
-        job_id = rec.get("job_id")
-        if job_id:
-            jobs[job_id] = rec
-    return jobs

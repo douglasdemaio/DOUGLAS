@@ -268,9 +268,9 @@ def main(argv: list[str] | None = None) -> int:
         scores = {
             "schema_version": 1,
             "run": run,
-            "track": "h3do",
-            "model": "minimax-h3",
-            "variant": manifest.get("variant"),
+            "track": config.get("track", "h3do"),
+            "model": config.get("model") or config["base"]["repo"],
+            "variant": config["base"].get("variant") or manifest.get("variant"),
             "engine": args.engine,
             "seeds": seeds,
             "items": len(items),
