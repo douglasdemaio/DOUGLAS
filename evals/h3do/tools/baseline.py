@@ -44,6 +44,7 @@ from .quality_metrics import score_item
 DEFAULT_MANIFEST = ROOT / "evals" / "h3do" / "research" / "eval_manifest.json"
 DEFAULT_PREDICTIONS = ROOT / "evals" / "h3do" / "research" / "synthetic_predictions.jsonl"
 DEFAULT_CONFIG = ROOT / "evals" / "h3do" / "config.yaml"
+REFERENCE_TYPES = {"image", "video", "audio"}
 RUN_STAMP = utc_now().strftime("%Y-%m-%dT%H%M%SZ")
 
 
@@ -60,7 +61,16 @@ def validate_manifest(
         problems.append("manifest has no items")
         return problems
 
-    prompt_ids = {prompt.get("id") for prompt in prompts}
+    prompt_by_id: dict[str, Mapping[str, Any]] = {}
+    for prompt in prompts:
+        prompt_id = prompt.get("id")
+        if not prompt_id:
+            problems.append("each prompt needs an id")
+            continue
+        if prompt_id in prompt_by_id:
+            problems.append(f"duplicate prompt id: {prompt_id}")
+        prompt_by_id[prompt_id] = prompt
+
     seen_items: set[str] = set()
     for item in items:
         if not isinstance(item, Mapping) or not item.get("id") or not item.get("prompt_id"):
@@ -69,8 +79,30 @@ def validate_manifest(
         if item["id"] in seen_items:
             problems.append(f"duplicate item id: {item['id']}")
         seen_items.add(item["id"])
-        if item["prompt_id"] not in prompt_ids:
+        if item["prompt_id"] not in prompt_by_id:
             problems.append(f"missing prompt {item['prompt_id']} for item {item['id']}")
+
+        task = item.get("task", "t2va")
+        references = item.get("references", [])
+        prompt_refs = prompt_by_id.get(item["prompt_id"], {}).get("references", [])
+        if task == "ref2va":
+            if not isinstance(references, list) or not references:
+                problems.append(f"ref2va item needs references: {item['id']}")
+            else:
+                for reference in references:
+                    if (
+                        not isinstance(reference, Mapping)
+                        or not reference.get("id")
+                        or reference.get("type") not in REFERENCE_TYPES
+                    ):
+                        problems.append(f"invalid reference on {item['id']}")
+            if prompt_refs != references:
+                problems.append(f"prompt references do not match item {item['id']}")
+        elif task == "t2va":
+            if references:
+                problems.append(f"t2va item must not have references: {item['id']}")
+        else:
+            problems.append(f"unknown task {task!r} on {item['id']}")
 
     if len(seeds) < 3:
         problems.append("at least 3 seeds are required")
@@ -241,15 +273,21 @@ def main(argv: list[str] | None = None) -> int:
             predictions_hash = "endpoint"
 
         per_seed: list[dict[str, list[float]]] = []
+        per_seed_by_task: dict[str, list[dict[str, list[float]]]] = defaultdict(list)
         failures: list[dict[str, Any]] = []
         for seed in seeds:
             collected: dict[str, list[float]] = defaultdict(list)
+            collected_by_task: dict[str, dict[str, list[float]]] = defaultdict(
+                lambda: defaultdict(list)
+            )
             for item in items:
                 prediction = predict(item, seed)
                 result = score_item(prediction, item, manifest)
+                task = str(item.get("task", "t2va"))
                 for name, value in result.items():
                     if isinstance(value, (int, float)) and not isinstance(value, bool):
                         collected[name].append(float(value))
+                        collected_by_task[task][name].append(float(value))
                 if result["success_rate"] != 1.0:
                     failures.append(
                         {
@@ -261,8 +299,14 @@ def main(argv: list[str] | None = None) -> int:
                         }
                     )
             per_seed.append(dict(collected))
+            for task, values in collected_by_task.items():
+                per_seed_by_task[task].append(dict(values))
 
         metrics = report.aggregate(per_seed)
+        metrics_by_task = {
+            task: report.aggregate(task_seeds)
+            for task, task_seeds in sorted(per_seed_by_task.items())
+        }
         run = args.run or f"{RUN_STAMP}-h3do-baseline"
         out_dir = Path(args.out).expanduser() if args.out else ROOT / "results" / run
         scores = {
@@ -276,6 +320,7 @@ def main(argv: list[str] | None = None) -> int:
             "items": len(items),
             "timestamp": utc_now_iso(),
             "metrics": metrics,
+            "metrics_by_task": metrics_by_task,
             "hashes": {
                 "manifest_sha256": sha256_file(manifest_path),
                 "config_sha256": sha256_file(config_path),
@@ -289,7 +334,7 @@ def main(argv: list[str] | None = None) -> int:
 
         out_dir.mkdir(parents=True, exist_ok=True)
         write_json(out_dir / "scores.json", scores)
-        report.write_markdown(out_dir / "report.md", scores, failures)
+        report.write_markdown(out_dir / "report.md", scores, failures, metrics_by_task)
     except (OSError, ValueError, KeyError) as exc:
         print(f"h3do baseline: {exc}", file=sys.stderr)
         return 2

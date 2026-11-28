@@ -33,7 +33,10 @@ def aggregate(per_seed: Sequence[Mapping[str, Sequence[float]]]) -> dict[str, di
 
 
 def write_markdown(
-    path: Path, scores: Mapping[str, Any], failures: Sequence[Mapping[str, Any]]
+    path: Path,
+    scores: Mapping[str, Any],
+    failures: Sequence[Mapping[str, Any]],
+    metrics_by_task: Mapping[str, Mapping[str, Mapping[str, Any]]] | None = None,
 ) -> None:
     lines = [
         f"# {scores['run']} — H3-DO baseline",
@@ -52,6 +55,21 @@ def write_markdown(
     for name, entry in sorted(scores["metrics"].items()):
         values = ", ".join(str(value) for value in entry["values"])
         lines.append(f"| `{name}` | {entry['mean']} | {entry['std']} | {values} |")
+
+    if metrics_by_task:
+        lines += [
+            "",
+            "## Metrics by task",
+            "",
+            "| task | metric | mean | std | per-seed |",
+            "| --- | --- | ---: | ---: | --- |",
+        ]
+        for task, metrics in sorted(metrics_by_task.items()):
+            for name, entry in sorted(metrics.items()):
+                values = ", ".join(str(value) for value in entry["values"])
+                lines.append(
+                    f"| `{task}` | `{name}` | {entry['mean']} | {entry['std']} | {values} |"
+                )
 
     lines += ["", f"## Failures ({len(failures)})", ""]
     if not failures:

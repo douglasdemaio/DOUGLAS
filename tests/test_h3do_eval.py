@@ -26,9 +26,20 @@ def test_manifest_and_fixture_are_consistent() -> None:
     seeds = [1, 2, 3]
 
     assert baseline.validate_manifest(manifest, prompts, seeds) == []
+    assert len(manifest["items"]) == 6
     index = baseline.load_predictions(PREDICTIONS)
     assert set(index) == {(item["id"], seed) for item in manifest["items"] for seed in seeds}
     assert all(record["frames"] for record in predictions)
+
+
+def test_validate_manifest_requires_ref2va_references() -> None:
+    manifest = load_json(MANIFEST)
+    prompts = list(read_jsonl(RESEARCH / "prompts.jsonl"))
+    broken = copy.deepcopy(manifest)
+    broken["items"][4].pop("references")
+
+    problems = baseline.validate_manifest(broken, prompts, [1, 2, 3])
+    assert any("ref2va item needs references" in problem for problem in problems)
 
 
 def test_config_and_manifest_pin_pika_h3_flex() -> None:
@@ -42,10 +53,10 @@ def test_config_and_manifest_pin_pika_h3_flex() -> None:
         == manifest["adapter_revision"]
         == "ca45d99f9b1d1859ffb9dc1cd6bfaaa994257f56"
     )
-    assert config["base"]["adapters"]["fl2va"] == manifest["adapter_path"]
+    assert config["base"]["adapters"]["fl2va"] == manifest["task_adapters"]["t2va"]
+    assert config["base"]["adapters"]["ref2va"] == manifest["task_adapters"]["ref2va"]
     assert config["base"]["upstream"]["repo"] == manifest["upstream_base_repo"]
     assert config["base"]["upstream"]["revision"] == manifest["upstream_base_revision"]
-    assert config["base"]["adapters"]["ref2va"] == "ref2va/adapter.safetensors"
     assert config["budget"]["training_gpu_hours"] == 0
 
 
@@ -115,10 +126,15 @@ def test_baseline_cli_writes_scores_offline(tmp_path) -> None:
     assert scores["config_base_revision"] == "ca45d99f9b1d1859ffb9dc1cd6bfaaa994257f56"
     assert scores["engine"] == "replay"
     assert scores["seeds"] == [1, 2, 3]
+    assert scores["items"] == 6
     assert scores["failure_count"] == 0
     assert scores["metrics"]["success_rate"]["mean"] == 1.0
     assert scores["metrics"]["output_seconds_per_gpu_second"]["mean"] > 0.0
-    assert (out_dir / "report.md").exists()
+    assert set(scores["metrics_by_task"]) == {"t2va", "ref2va"}
+    assert scores["metrics_by_task"]["ref2va"]["success_rate"]["mean"] == 1.0
+    report_text = (out_dir / "report.md").read_text(encoding="utf-8")
+    assert "## Metrics by task" in report_text
+    assert "`ref2va`" in report_text
 
 
 def test_baseline_requires_at_least_three_seeds(tmp_path) -> None:

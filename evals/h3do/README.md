@@ -36,11 +36,23 @@ The manifest records the same pinned target as `config.yaml`:
 - `model`: `pika-h3-flex`
 - `adapter_repo` / `adapter_revision`: the pinned Pika H3 Flex repository and
   revision
-- `adapter_path`: the FL2VA adapter used by this research profile
+- `task_adapters`: the FL2VA adapter for `t2va` items and the Ref2VA adapter
+  for `ref2va` items
 - `upstream_base_repo` / `upstream_base_revision`: the pinned MiniMax H3 base
 
 This metadata is descriptive only. It does not download weights or change the
 offline scoring path.
+
+## Task slices
+
+The manifest has four offline `t2va` items using the FL2VA adapter and two
+`ref2va` items using the Ref2VA adapter. Reference inputs are ID+type
+placeholders such as `{"id": "ref-img-005", "type": "image"}`; no media bytes or
+URLs are committed.
+
+`scores.json` keeps the existing overall `metrics` and also writes
+`metrics_by_task`, so FL2VA and Ref2VA results can be read separately. The
+Markdown report includes the same per-task table.
 
 ## Prediction contract
 

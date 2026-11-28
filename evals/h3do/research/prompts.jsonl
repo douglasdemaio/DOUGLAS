@@ -2,3 +2,5 @@
 {"id":"p002","prompt":"A paper boat floating in a rain puddle, close-up, soft reflections.","reference_images":[]}
 {"id":"p003","prompt":"A desk lamp switching on in a dark room, dust motes drifting.","reference_images":[]}
 {"id":"p004","prompt":"A bicycle rolling slowly past a brick wall, autumn leaves falling.","reference_images":[]}
+{"id":"p005","prompt":"Use the reference subject in a slow orbit under warm studio light, with synchronized room tone.","references":[{"id":"ref-img-005","type":"image"}]}
+{"id":"p006","prompt":"Match the reference motion and ambience while keeping the reference character in frame.","references":[{"id":"ref-img-006","type":"image"},{"id":"ref-aud-006","type":"audio"}]}
